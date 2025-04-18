@@ -45,7 +45,10 @@ The `calibration.py` module provides tools for calibrating tool offsets:
 from calibration import CalibrateToolheads
 
 calibrator = CalibrateToolheads()
-calibrator.calibrate()
+calibrator.home()  # Home all axes first
+calibrator.calibrate_with_camera(0)  # Calibrate tool 0
+calibrator.calibrate_with_camera(1)  # Calibrate tool 1
+calibrator.close()  # Clean up when done
 ```
 
 ### Vision Tools
@@ -71,8 +74,10 @@ This is a project for Georgia Tech. Please contact the maintainer for contributi
 
 ## License
 
-[Your chosen license]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contact
 
-[Your GT contact information]
+Sebastian Mettes  
+Georgia Institute of Technology  
+Email: smettes3@gatech.edu
