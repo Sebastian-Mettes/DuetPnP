@@ -53,14 +53,39 @@ calibrator.close()  # Clean up when done
 
 ### Vision Tools
 
-The `vision_tools.py` module handles computer vision tasks:
+The `vision_tools.py` module contains OpenCV pipelines for tool detection and calibration. It provides:
+- HSV color thresholding to isolate tools in the camera feed
+- Circle detection to identify tool positions
+- Real-time parameter tuning interface
+- Tool position tracking
 
-```python
-from vision_tools import VisionTools
+To set up the vision system:
 
-vision = VisionTools()
-vision.start_camera()
+1. Run the vision tools setup script:
+```bash
+python vision_tools.py
 ```
+
+2. This will open three windows:
+   - Camera Feed: Shows the live camera view with detected circles
+   - HSV Controls: Sliders to adjust the color filtering
+   - Circle Controls: Parameters for circle detection
+
+3. Adjust the HSV thresholds to isolate your tool:
+   - H (Hue): Color
+   - S (Saturation): Color intensity
+   - V (Value): Brightness
+
+4. Fine-tune circle detection parameters:
+   - dp: Accumulator resolution
+   - minDist: Minimum distance between circles
+   - param1: Edge detection threshold
+   - param2: Circle detection threshold
+   - minRadius/maxRadius: Size constraints
+
+5. Press 'q' to save your parameters when satisfied. The script will then test the tool detection with your settings.
+
+The saved parameters will be used by the calibration routine to locate tools automatically.
 
 ## Configuration
 
