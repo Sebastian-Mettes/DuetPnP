@@ -1,0 +1,13 @@
+# Core dependencies
+numpy>=2.2.4
+opencv-python>=4.11.0.86
+dsf-python==3.6rc2
+
+# Optional but recommended for development
+pytest>=7.4.0
+ipython>=8.12.0
+pylint>=2.17.0
+
+# For Raspberry Pi deployment (commented out as they're platform specific)
+# opencv-python-headless>=4.8.0  # Use this instead of opencv-python on Raspberry Pi
+# picamera2>=0.3.12  # If using the Raspberry Pi camera module 

@@ -1,0 +1,11 @@
+[project]
+name = "duetpnp"
+version = "0.1.0"
+description = "Machine vision calibration and PnP Library for sensing technologies lab Duet3D Printer"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "dsf-python==3.6rc2",
+    "numpy>=2.2.4",
+    "opencv-python>=4.11.0.86",
+]
