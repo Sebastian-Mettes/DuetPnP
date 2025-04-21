@@ -20,7 +20,7 @@ class CalibrateToolheads:
 
         self.connection = CommandConnection(debug=False)
         self.connection.connect()
-        self.camera_location = [-100,-100,0] #Camera coordinates, XYZ
+        self.camera_location = [-74,-32,80] #Camera coordinates, XYZ
 
 
 
@@ -298,10 +298,10 @@ class CalibrateToolheads:
         self.send_gcode_command(f"T{toolhead_number}", check=False)
         
         # Move to safe Z height first
-        self.send_gcode_command("G0 Z50 F60", check=False)
+        self.send_gcode_command("G0 Z80 F6000", check=False)
         
         # Move to approximate camera XY position
-        self.send_gcode_command(f"G0 X{self.camera_location[0]} Y{self.camera_location[1]} F60", check=False)
+        self.send_gcode_command(f"G0 X{self.camera_location[0]} Y{self.camera_location[1]} F6000", check=False)
         
         # Constants for the centering algorithm
         MAX_ITERATIONS = 20  # Maximum number of attempts to center
@@ -325,7 +325,7 @@ class CalibrateToolheads:
             tool_pos = camera.find_tool_position()
             if tool_pos is None:
                 print("Could not detect tool in camera image")
-                return False
+                continue
             
             x_pixel, y_pixel = tool_pos
             x_offset = IMAGE_CENTER[0] - x_pixel
@@ -354,14 +354,14 @@ class CalibrateToolheads:
                 dy_mm = current_pos['Y'] - previous_pos['Y']
                 
                 # Calculate pixel movement
-                dx_pixels = previous_pixel_pos[0] - x_pixel
-                dy_pixels = previous_pixel_pos[1] - y_pixel
+                dy_pixels = previous_pixel_pos[0] - x_pixel
+                dx_pixels = previous_pixel_pos[1] - y_pixel
                 
                 # Update conversion factors if movement was significant (avoid division by zero or tiny movements)
                 if abs(dx_mm) > 0.1 and abs(dx_pixels) > 1:
-                    pixels_to_mm_x = abs(dx_pixels / dx_mm)
+                    pixels_to_mm_x = (dx_pixels / dx_mm)
                 if abs(dy_mm) > 0.1 and abs(dy_pixels) > 1:
-                    pixels_to_mm_y = abs(dy_pixels / dy_mm)
+                    pixels_to_mm_y = (dy_pixels / dy_mm)
                     
                 # Use average of X and Y conversion factors if both are valid
                 if 'pixels_to_mm_x' in locals() and 'pixels_to_mm_y' in locals():
@@ -381,7 +381,7 @@ class CalibrateToolheads:
             new_y = current_pos['Y'] + y_move
             
             # Move to new position slowly
-            self.send_gcode_command(f"G0 X{new_x:.3f} Y{new_y:.3f} F60", check=False)
+            self.send_gcode_command(f"G0 X{new_x:.3f} Y{new_y:.3f} F600", check=False)
             
             # Small delay to ensure move is complete and camera image is updated
             time.sleep(0.5)
@@ -400,8 +400,8 @@ class CalibrateToolheads:
 
 if __name__ == "__main__":
     Printer = CalibrateToolheads()
-    Printer.home()
-    Printer.calibrate_with_camera(0)
+#    Printer.home()
+#    Printer.calibrate_with_camera(0)
     Printer.calibrate_with_camera(1)
     Printer.close()
 

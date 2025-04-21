@@ -650,6 +650,7 @@ if __name__ == "__main__":
                 break
     
     finally:
+        #continue
         cv2.destroyAllWindows()
     
     # Second part: Test tool detection
@@ -658,7 +659,7 @@ if __name__ == "__main__":
     print("- If multiple circles are found >200px apart, click the correct one")
     print("- Press 'q' to quit the test")
     
-    vision = VisionTools()
+#    vision = VisionTools()
     try:
         while True:
             tool_pos = vision.find_tool_position()
