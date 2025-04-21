@@ -354,27 +354,28 @@ class CalibrateToolheads:
                 dy_mm = current_pos['Y'] - previous_pos['Y']
                 
                 # Calculate pixel movement
-                dy_pixels = previous_pixel_pos[0] - x_pixel
-                dx_pixels = previous_pixel_pos[1] - y_pixel
+                dx_pixels = previous_pixel_pos[0] - x_pixel
+                dy_pixels = previous_pixel_pos[1] - y_pixel
                 
                 # Update conversion factors if movement was significant (avoid division by zero or tiny movements)
-                if abs(dx_mm) > 0.1 and abs(dx_pixels) > 1:
-                    pixels_to_mm_x = (dx_pixels / dx_mm)
-                if abs(dy_mm) > 0.1 and abs(dy_pixels) > 1:
-                    pixels_to_mm_y = (dy_pixels / dy_mm)
+                # if abs(dx_mm) > 0.1 and abs(dx_pixels) > 2:
+                #     pixels_to_mm_x = abs(dx_pixels / dx_mm)
+                
+                # if abs(dy_mm) > 0.1 and abs(dy_pixels) > 2:
+                #     pixels_to_mm_y = abs(dy_pixels / dy_mm)
                     
                 # Use average of X and Y conversion factors if both are valid
-                if 'pixels_to_mm_x' in locals() and 'pixels_to_mm_y' in locals():
-                    pixels_to_mm = (pixels_to_mm_x + pixels_to_mm_y) / 2
-                    print(f"Updated pixels_to_mm: {pixels_to_mm:.4f}")
+                # if 'pixels_to_mm_x' in locals() and 'pixels_to_mm_y' in locals():
+                #     pixels_to_mm = (pixels_to_mm_x + pixels_to_mm_y) / 2
+                #     print(f"Updated pixels_to_mm: {pixels_to_mm:.4f}")
             
             # Store current positions for next iteration
             previous_pos = current_pos
             previous_pixel_pos = (x_pixel, y_pixel)
             
             # Calculate move distance using current conversion factor
-            x_move = x_offset / pixels_to_mm
-            y_move = y_offset / pixels_to_mm
+            x_move = -y_offset / pixels_to_mm #May need to be modified based on camera orientation
+            y_move = x_offset / pixels_to_mm
             
             # Calculate new position
             new_x = current_pos['X'] + x_move
