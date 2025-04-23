@@ -20,7 +20,7 @@ class CalibrateToolheads:
 
         self.connection = CommandConnection(debug=False)
         self.connection.connect()
-        self.camera_location = [-74,-32,80] #Camera coordinates, XYZ
+        self.camera_location = [-74,-32,50] #Camera coordinates, XYZ
 
 
 
@@ -163,7 +163,7 @@ class CalibrateToolheads:
                     
         except Exception as e:
             raise ValueError(f"Error parsing G10 response: {str(e)}")
-        
+        print(f"Offsets: {offsets}")
         return offsets
 
     def parse_axis_mapping(self, response):
@@ -240,7 +240,7 @@ class CalibrateToolheads:
             # Get axis mappings for this tool
             self.send_gcode_command(f"M563 P{toolhead_number}", check=False)
             axis_maps = self.parse_axis_mapping(self.response)
-            
+            print(f"Axis maps: {axis_maps}")
             # Get current position
             self.send_gcode_command("M114", check=False)
             current_pos = self.parse_position(self.response)
@@ -254,9 +254,17 @@ class CalibrateToolheads:
             for source_axis, mapped_axis in axis_maps.items():
                 # Get the index for X, Y, or Z (0, 1, or 2)
                 axis_index = 'XYZ'.index(source_axis)
-                new_offsets[mapped_axis] = current_offsets[mapped_axis] + (
-                    current_pos[mapped_axis] - expected_position[axis_index]
-                )
+                print(f"Axis index: {axis_index}")
+                # Calculate the difference in the source axis (X, Y, or Z)
+                print(f"Current position: {current_pos}")
+                print(f"Source axis: {source_axis}")
+                print(f"Current position: {current_pos[source_axis]}")
+                print(f"Expected position: {expected_position[axis_index]}")
+                source_diff = current_pos[source_axis] - expected_position[axis_index]
+                print(f"Source difference: {source_diff}")
+                # Add this difference to the current offset of the mapped axis
+                new_offsets[mapped_axis] = current_offsets[mapped_axis] - source_diff
+                print(f"New offsets: {new_offsets}")
             
             # Build G10 command with mapped axes
             offset_params = ' '.join(
@@ -298,15 +306,15 @@ class CalibrateToolheads:
         self.send_gcode_command(f"T{toolhead_number}", check=False)
         
         # Move to safe Z height first
-        self.send_gcode_command("G0 Z80 F6000", check=False)
+        self.send_gcode_command("G0 Z50 F6000", check=False)
         
         # Move to approximate camera XY position
         self.send_gcode_command(f"G0 X{self.camera_location[0]} Y{self.camera_location[1]} F6000", check=False)
-        
+        time.sleep(1.5)
         # Constants for the centering algorithm
         MAX_ITERATIONS = 20  # Maximum number of attempts to center
-        TOLERANCE = 5  # Pixels from center considered "centered"
-        INITIAL_PIXELS_TO_MM = 0.1  # Initial conversion factor
+        TOLERANCE = 0  # Pixels from center considered "centered"
+        INITIAL_PIXELS_TO_MM = 0.01  # Initial conversion factor
         
         # Start Camera by instantiating VisionTools class
         camera = VisionTools()
@@ -314,7 +322,7 @@ class CalibrateToolheads:
         # Get image dimensions from vision tools and calculate center
         image_width, image_height = camera.get_image_dimensions()
         IMAGE_CENTER = (image_width // 2, image_height // 2)
-        
+        print(f"Image center: {IMAGE_CENTER}")
         iteration = 0
         pixels_to_mm = INITIAL_PIXELS_TO_MM  # Start with initial conversion factor
         previous_pos = None
@@ -323,6 +331,7 @@ class CalibrateToolheads:
         while iteration < MAX_ITERATIONS:
             # Get tool position in camera image
             tool_pos = camera.find_tool_position()
+            print(f"Tool pixel position: {tool_pos}")
             if tool_pos is None:
                 print("Could not detect tool in camera image")
                 continue
@@ -334,6 +343,7 @@ class CalibrateToolheads:
             # Check if we're centered within tolerance
             if abs(x_offset) <= TOLERANCE and abs(y_offset) <= TOLERANCE:
                 print("Tool successfully centered in camera view")
+                print(f"Camera location: {self.camera_location}")
                 # Set tool offset relative to camera location
                 try:
                     self.set_tool_offset(self.camera_location, toolhead_number)
@@ -348,14 +358,14 @@ class CalibrateToolheads:
             current_pos = self.parse_position(self.response)
             
             # Calculate pixels_to_mm based on previous movement if available
-            if previous_pos is not None and previous_pixel_pos is not None:
+            # if previous_pos is not None and previous_pixel_pos is not None:
                 # Calculate actual movement in mm
-                dx_mm = current_pos['X'] - previous_pos['X']
-                dy_mm = current_pos['Y'] - previous_pos['Y']
+                # dx_mm = current_pos['X'] - previous_pos['X']
+                # dy_mm = current_pos['Y'] - previous_pos['Y']
                 
                 # Calculate pixel movement
-                dx_pixels = previous_pixel_pos[0] - x_pixel
-                dy_pixels = previous_pixel_pos[1] - y_pixel
+                # dx_pixels = previous_pixel_pos[0] - x_pixel
+                # dy_pixels = previous_pixel_pos[1] - y_pixel
                 
                 # Update conversion factors if movement was significant (avoid division by zero or tiny movements)
                 # if abs(dx_mm) > 0.1 and abs(dx_pixels) > 2:
@@ -374,18 +384,18 @@ class CalibrateToolheads:
             previous_pixel_pos = (x_pixel, y_pixel)
             
             # Calculate move distance using current conversion factor
-            x_move = -y_offset / pixels_to_mm #May need to be modified based on camera orientation
-            y_move = x_offset / pixels_to_mm
+            x_move = -y_offset * pixels_to_mm #May need to be modified based on camera orientation
+            y_move = x_offset * pixels_to_mm
             
             # Calculate new position
             new_x = current_pos['X'] + x_move
             new_y = current_pos['Y'] + y_move
             
             # Move to new position slowly
-            self.send_gcode_command(f"G0 X{new_x:.3f} Y{new_y:.3f} F600", check=False)
-            
+            self.send_gcode_command(f"G0 X{new_x:.3f} Y{new_y:.3f} F1200", check=False)
+            print(f"Moved to new position: X{new_x:.3f} Y{new_y:.3f}")
             # Small delay to ensure move is complete and camera image is updated
-            time.sleep(0.5)
+            time.sleep(1.5)
             
             iteration += 1
             print(f"Centering iteration {iteration}: offset (pixels) = ({x_offset}, {y_offset}), move (mm) = ({x_move:.3f}, {y_move:.3f})")

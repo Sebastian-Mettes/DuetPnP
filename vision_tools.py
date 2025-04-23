@@ -28,9 +28,29 @@ class VisionTools:
         if not self.camera.isOpened():
             raise RuntimeError("Could not open camera")
         
-        # Get camera resolution
+        # Set 720p resolution (1280x720)
+        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        
+        # Verify resolution was set correctly
+        actual_width = int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH))
+        actual_height = int(self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        
+        if actual_width != 1280 or actual_height != 720:
+            print(f"Warning: Could not set 720p resolution. Actual resolution: {actual_width}x{actual_height}")
+            # Try to set the closest supported resolution
+            if actual_width < 1280:
+                self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            else:
+                self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+                self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        
+        # Get final camera resolution
         self.width = int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = int(self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        
+        print(f"Camera initialized at {self.width}x{self.height} resolution")
         
         # HSV threshold values
         self.hsv_lower = np.array([0, 0, 0])
@@ -52,6 +72,31 @@ class VisionTools:
         # Camera settings
         self.brightness = 0
         self.contrast = 0
+
+    def set_camera_resolution(self, width: int, height: int) -> bool:
+        """
+        Set the camera resolution.
+        
+        Args:
+            width (int): Desired width in pixels
+            height (int): Desired height in pixels
+            
+        Returns:
+            bool: True if resolution was set successfully
+        """
+        # Set width and height
+        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        
+        # Verify the resolution was set
+        actual_width = int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH))
+        actual_height = int(self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        
+        if actual_width != width or actual_height != height:
+            print(f"Warning: Could not set exact resolution. Actual resolution: {actual_width}x{actual_height}")
+            return False
+            
+        return True
 
     def get_image_dimensions(self):
         """Get the dimensions of the camera frame."""
@@ -88,12 +133,13 @@ class VisionTools:
                     # Check if click was inside circle
                     if (x - cx)**2 + (y - cy)**2 <= r**2:
                         mouse_callback.selected_circle = (cx, cy)
+                        print("Circle Selected")
                         return
         
         while True:
             # Get frame
-            ret, frame = self.camera.read()  # Using correct cv2.VideoCapture method
-            if not ret:
+            frame = self.capture_frame()  # Using correct cv2.VideoCapture method
+            if frame is None:
                 continue
             
             # Process frame
@@ -115,10 +161,11 @@ class VisionTools:
             )
             
             if circles is not None:
-                circles = np.uint16(np.around(circles))
+                circles = np.int32(np.around(circles))
                 
                 if len(circles[0]) == 1:
                     # Single circle found
+                    print("Single Circle Found")
                     return (int(circles[0][0][0]), int(circles[0][0][1]))
                 
                 elif len(circles[0]) > 1:
@@ -211,6 +258,10 @@ class VisionTools:
         if self.camera is None:
             print("Camera not initialized")
             return None
+            
+        # Clear the buffer by reading a few frames
+        for _ in range(10):  # Read 10 frames to clear buffer
+            self.camera.read()
             
         ret, frame = self.camera.read()
         if not ret:
