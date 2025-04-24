@@ -20,7 +20,7 @@ class CalibrateToolheads:
 
         self.connection = CommandConnection(debug=False)
         self.connection.connect()
-        self.camera_location = [-74,-32,50] #Camera coordinates, XYZ
+        self.camera_location = [-14.5,-39,55] #Camera coordinates, XYZ
 
 
 
@@ -313,8 +313,8 @@ class CalibrateToolheads:
         time.sleep(1.5)
         # Constants for the centering algorithm
         MAX_ITERATIONS = 20  # Maximum number of attempts to center
-        TOLERANCE = 0  # Pixels from center considered "centered"
-        INITIAL_PIXELS_TO_MM = 0.01  # Initial conversion factor
+        TOLERANCE = 2  # Pixels from center considered "centered"
+        INITIAL_PIXELS_TO_MM = 0.0125  # Initial conversion factor
         
         # Start Camera by instantiating VisionTools class
         camera = VisionTools()
@@ -384,8 +384,8 @@ class CalibrateToolheads:
             previous_pixel_pos = (x_pixel, y_pixel)
             
             # Calculate move distance using current conversion factor
-            x_move = -y_offset * pixels_to_mm #May need to be modified based on camera orientation
-            y_move = x_offset * pixels_to_mm
+            y_move = -y_offset * pixels_to_mm #May need to be modified based on camera orientation
+            x_move = -x_offset * pixels_to_mm
             
             # Calculate new position
             new_x = current_pos['X'] + x_move
@@ -413,6 +413,7 @@ if __name__ == "__main__":
     Printer = CalibrateToolheads()
 #    Printer.home()
 #    Printer.calibrate_with_camera(0)
+    Printer.calibrate_with_camera(0)
     Printer.calibrate_with_camera(1)
     Printer.close()
 
