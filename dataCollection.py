@@ -186,28 +186,21 @@ class DataCollection:
     def collect_data(self, num_images: int, grid_size: int = 5):
         """
         Collect training data by moving the toolhead in a grid pattern.
+        Uses homography matrix to know exact pixel coordinates of needle tip.
         
         Args:
             num_images (int): Number of images to collect
             grid_size (int): Size of the grid (grid_size x grid_size)
         """
-        if self.mm_to_pixel is None or self.camera_bounds is None:
+        if self.homography_matrix is None or self.camera_bounds is None:
             raise ValueError("Calibration must be performed before data collection")
         
         print("\n=== Data Collection ===")
         print(f"Collecting {num_images} images in a {grid_size}x{grid_size} grid")
         
-        # Calculate grid step sizes
+        # Calculate grid step sizes in pixel space
         x_step = (self.camera_bounds['max_x'] - self.camera_bounds['min_x']) / (grid_size - 1)
         y_step = (self.camera_bounds['max_y'] - self.camera_bounds['min_y']) / (grid_size - 1)
-        
-        # Start from center and spiral outward
-        center_x = (self.camera_bounds['min_x'] + self.camera_bounds['max_x']) / 2
-        center_y = (self.camera_bounds['min_y'] + self.camera_bounds['max_y']) / 2
-        
-        # Convert pixel positions to machine coordinates
-        center_machine_x = self.printer.camera_location[0]
-        center_machine_y = self.printer.camera_location[1]
         
         images_collected = 0
         while images_collected < num_images:
@@ -220,9 +213,11 @@ class DataCollection:
                     target_x = self.camera_bounds['min_x'] + i * x_step
                     target_y = self.camera_bounds['min_y'] + j * y_step
                     
-                    # Convert to machine coordinates
-                    machine_x = center_machine_x + (target_x - center_x) / self.mm_to_pixel
-                    machine_y = center_machine_y + (target_y - center_y) / self.mm_to_pixel
+                    # Convert pixel target to machine coordinates using homography
+                    pixel_point = np.array([[[target_x, target_y]]], dtype=np.float32)
+                    machine_point = cv2.perspectiveTransform(pixel_point, self.homography_matrix)
+                    machine_x = machine_point[0][0][0] + self.calibration_center[0]
+                    machine_y = machine_point[0][0][1] + self.calibration_center[1]
                     
                     # Move to position
                     self.printer.send_gcode_command(f"G0 X{machine_x:.3f} Y{machine_y:.3f} F6000", check=False)
@@ -231,14 +226,16 @@ class DataCollection:
                     # Capture image
                     frame = self.camera.capture_frame()
                     if frame is not None:
-                        # Generate filename with position and tool number
+                        # Generate filename with pixel coordinates
                         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        filename = f"tool{self.toolhead_number}_x{int(target_x)}_y{int(target_y)}_{timestamp}.jpg"
+                        filename = (f"tool{self.toolhead_number}_"
+                                  f"px{int(target_x)}_py{int(target_y)}_{timestamp}.jpg")
                         filepath = os.path.join(self.output_dir, filename)
                         
                         # Save image
                         cv2.imwrite(filepath, frame)
                         print(f"Saved image {images_collected + 1}/{num_images}: {filename}")
+                        print(f"Needle pixel position: ({int(target_x)}, {int(target_y)})")
                         images_collected += 1
         
         print("\nData collection complete!")
