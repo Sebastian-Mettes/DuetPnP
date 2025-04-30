@@ -313,8 +313,8 @@ class CalibrateToolheads:
         time.sleep(1.5)
         # Constants for the centering algorithm
         MAX_ITERATIONS = 20  # Maximum number of attempts to center
-        TOLERANCE = 2  # Pixels from center considered "centered"
-        INITIAL_PIXELS_TO_MM = 0.0125  # Initial conversion factor
+        TOLERANCE = 0  # Pixels from center considered "centered"
+        INITIAL_PIXELS_TO_MM = 0.04  # Initial conversion factor
         
         # Start Camera by instantiating VisionTools class
         camera = VisionTools()
