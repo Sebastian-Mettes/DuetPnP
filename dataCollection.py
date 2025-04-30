@@ -5,6 +5,7 @@ from calibration import CalibrateToolheads
 from vision_tools import VisionTools
 import time
 from datetime import datetime
+import json
 
 class DataCollection:
     def __init__(self, toolhead_number: int, output_dir: str = "training_data"):
@@ -29,80 +30,158 @@ class DataCollection:
         
     def manual_calibration(self):
         """
-        Perform manual calibration to determine mm to pixel ratio and camera bounds.
-        User clicks on needle position or presses 'n' if needle is not visible.
+        Perform manual calibration to determine camera distortion and pixel-to-mm mapping.
+        Uses WASD keys for relative movement and stores calibration data.
         """
         print("\n=== Manual Calibration ===")
-        print("1. Move the toolhead to the center of the camera view")
-        print("2. Click on the needle position in the image")
-        print("3. Press 'n' if the needle is not visible")
-        print("4. Press 'q' to finish calibration")
+        print("1. First running automatic camera calibration...")
         
-        # Move to center position
-        self.printer.send_gcode_command("G0 Z80 F6000", check=False)
-        self.printer.send_gcode_command(f"G0 X{self.printer.camera_location[0]} Y{self.printer.camera_location[1]} F6000", check=False)
-        time.sleep(3.0)
+        # Run initial camera calibration
+        if not self.printer.calibrate_with_camera(self.toolhead_number):
+            raise ValueError("Initial camera calibration failed")
+        
+        print("\n2. Manual calibration mode:")
+        print("- Use WASD keys to move the toolhead (1mm per press)")
+        print("- Press SPACE to store current point")
+        print("- Press Q to finish after collecting at least 15 points")
+        print("\nIMPORTANT: For best results, include points near the edges")
+        print("of the visible area. This will maximize the usable camera bounds")
+        print("for data collection.")
         
         # Initialize calibration data
-        calibration_points = []
-        pixel_positions = []
+        calibration_points = []  # List of (machine_x, machine_y) relative to center
+        pixel_points = []  # List of (pixel_x, pixel_y) coordinates
         
-        def mouse_callback(event, x, y, flags, param):
+        # Store initial center position
+        self.printer.send_gcode_command("M114", check=False)
+        center_pos = self.printer.parse_position(self.printer.response)
+        center_x = center_pos['X']
+        center_y = center_pos['Y']
+        
+        def on_mouse_click(event, x, y, flags, param):
             if event == cv2.EVENT_LBUTTONDOWN:
-                # Get current machine position
+                # Get current machine position relative to center
                 self.printer.send_gcode_command("M114", check=False)
                 current_pos = self.printer.parse_position(self.printer.response)
-                calibration_points.append((current_pos['X'], current_pos['Y']))
-                pixel_positions.append((x, y))
-                print(f"Calibration point added: Machine ({current_pos['X']:.2f}, {current_pos['Y']:.2f}) -> Pixel ({x}, {y})")
+                rel_x = current_pos['X'] - center_x
+                rel_y = current_pos['Y'] - center_y
+                
+                # Store the points
+                calibration_points.append((rel_x, rel_y))
+                pixel_points.append((x, y))
+                print(f"Point stored: Machine({rel_x:.2f}, {rel_y:.2f}) -> Pixel({x}, {y})")
         
         cv2.namedWindow('Calibration')
-        cv2.setMouseCallback('Calibration', mouse_callback)
+        cv2.setMouseCallback('Calibration', on_mouse_click)
         
         while True:
             frame = self.camera.capture_frame()
-            if frame is not None:
-                cv2.imshow('Calibration', frame)
-            
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord('q'):
-                break
-            elif key == ord('n'):
-                print("Needle not visible - skipping point")
+            if frame is None:
                 continue
+            
+            # Draw stored points on frame
+            for px, py in pixel_points:
+                cv2.circle(frame, (int(px), int(py)), 3, (0, 255, 0), -1)
+            
+            cv2.imshow('Calibration', frame)
+            key = cv2.waitKey(1) & 0xFF
+            
+            # Handle key presses for movement
+            if key == ord('w'):  # Forward Y
+                self.printer.send_gcode_command("G91", check=False)  # Relative movement
+                self.printer.send_gcode_command("G0 Y1 F1200", check=False)
+                self.printer.send_gcode_command("G90", check=False)  # Back to absolute
+            elif key == ord('s'):  # Backward Y
+                self.printer.send_gcode_command("G91", check=False)
+                self.printer.send_gcode_command("G0 Y-1 F1200", check=False)
+                self.printer.send_gcode_command("G90", check=False)
+            elif key == ord('a'):  # Left X
+                self.printer.send_gcode_command("G91", check=False)
+                self.printer.send_gcode_command("G0 X-1 F1200", check=False)
+                self.printer.send_gcode_command("G90", check=False)
+            elif key == ord('d'):  # Right X
+                self.printer.send_gcode_command("G91", check=False)
+                self.printer.send_gcode_command("G0 X1 F1200", check=False)
+                self.printer.send_gcode_command("G90", check=False)
+            elif key == ord('q'):
+                if len(calibration_points) < 15:
+                    print(f"Need at least 15 points (currently have {len(calibration_points)})")
+                    continue
+                break
+            
+            time.sleep(0.1)  # Small delay to prevent too rapid movement
         
         cv2.destroyAllWindows()
         
-        if len(calibration_points) < 2:
-            raise ValueError("Need at least 2 calibration points to determine mm to pixel ratio")
-        
-        # Calculate mm to pixel ratio
-        x_ratios = []
-        y_ratios = []
-        
-        for i in range(1, len(calibration_points)):
-            dx_mm = calibration_points[i][0] - calibration_points[0][0]
-            dy_mm = calibration_points[i][1] - calibration_points[0][1]
-            dx_pixel = pixel_positions[i][0] - pixel_positions[0][0]
-            dy_pixel = pixel_positions[i][1] - pixel_positions[0][1]
-            
-            if dx_mm != 0:
-                x_ratios.append(abs(dx_pixel / dx_mm))
-            if dy_mm != 0:
-                y_ratios.append(abs(dy_pixel / dy_mm))
-        
-        # Use average of ratios
-        self.mm_to_pixel = (np.mean(x_ratios) + np.mean(y_ratios)) / 2
-        print(f"\nCalibration complete. mm to pixel ratio: {self.mm_to_pixel:.4f}")
-        
-        # Determine camera bounds
+        # Calculate camera bounds from pixel points
         self.camera_bounds = {
-            'min_x': min(p[0] for p in pixel_positions),
-            'max_x': max(p[0] for p in pixel_positions),
-            'min_y': min(p[1] for p in pixel_positions),
-            'max_y': max(p[1] for p in pixel_positions)
+            'min_x': float(np.min(pixel_points[:, 0])),
+            'max_x': float(np.max(pixel_points[:, 0])),
+            'min_y': float(np.min(pixel_points[:, 1])),
+            'max_y': float(np.max(pixel_points[:, 1]))
         }
-        print(f"Camera bounds: {self.camera_bounds}")
+        
+        # Calculate camera calibration matrix and distortion coefficients
+        pixel_points = np.array(pixel_points, dtype=np.float32)
+        calibration_points = np.array(calibration_points, dtype=np.float32)
+        
+        # Reshape points for cv2.findHomography
+        src_points = pixel_points.reshape(-1, 1, 2)
+        dst_points = calibration_points.reshape(-1, 1, 2)
+        
+        # Calculate the homography matrix
+        H, _ = cv2.findHomography(src_points, dst_points)
+        
+        # Save calibration data
+        calibration_data = {
+            'homography_matrix': H.tolist(),
+            'center_position': {'x': center_x, 'y': center_y},
+            'camera_name': f'camera_{self.toolhead_number}',
+            'calibration_date': datetime.now().isoformat(),
+            'num_points': len(calibration_points)
+        }
+        
+        # Save to file
+        os.makedirs('calibration_data', exist_ok=True)
+        calibration_file = os.path.join('calibration_data', f'camera_{self.toolhead_number}_calibration.json')
+        with open(calibration_file, 'w') as f:
+            json.dump(calibration_data, f, indent=4)
+        
+        print(f"\nCalibration complete! Data saved to {calibration_file}")
+        print(f"Collected {len(calibration_points)} points")
+        
+        # Store calibration data in instance
+        self.homography_matrix = H
+        self.calibration_center = (center_x, center_y)
+
+    def load_camera_calibration(self, camera_name: str) -> bool:
+        """
+        Load camera calibration data from a saved file.
+        
+        Args:
+            camera_name: Name of the camera calibration to load
+            
+        Returns:
+            bool: True if calibration was loaded successfully
+        """
+        calibration_file = os.path.join('calibration_data', f'{camera_name}_calibration.json')
+        try:
+            with open(calibration_file, 'r') as f:
+                calibration_data = json.load(f)
+                
+            self.homography_matrix = np.array(calibration_data['homography_matrix'])
+            self.calibration_center = (
+                calibration_data['center_position']['x'],
+                calibration_data['center_position']['y']
+            )
+            print(f"Loaded calibration data from {calibration_file}")
+            print(f"Calibration date: {calibration_data['calibration_date']}")
+            print(f"Number of calibration points: {calibration_data['num_points']}")
+            return True
+            
+        except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
+            print(f"Error loading calibration data: {str(e)}")
+            return False
     
     def collect_data(self, num_images: int, grid_size: int = 5):
         """
