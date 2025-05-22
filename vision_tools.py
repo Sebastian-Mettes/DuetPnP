@@ -29,14 +29,14 @@ class VisionTools:
             raise RuntimeError("Could not open camera")
         
         # Set 720p resolution (1280x720)
-        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 3840)
+        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 3040)
         
         # Verify resolution was set correctly
         actual_width = int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH))
         actual_height = int(self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
         
-        if actual_width != 1280 or actual_height != 720:
+        if actual_width != 3840 or actual_height != 3040:
             print(f"Warning: Could not set 720p resolution. Actual resolution: {actual_width}x{actual_height}")
             # Try to set the closest supported resolution
             if actual_width < 1280:
@@ -162,7 +162,7 @@ class VisionTools:
             
             if circles is not None:
                 circles = np.int32(np.around(circles))
-                
+            
                 if len(circles[0]) == 1:
                     # Single circle found
                     print("Single Circle Found")

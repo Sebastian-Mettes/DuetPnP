@@ -10,4 +10,4 @@ pylint>=2.17.0
 
 # For Raspberry Pi deployment (commented out as they're platform specific)
 # opencv-python-headless>=4.8.0  # Use this instead of opencv-python on Raspberry Pi
-# picamera2>=0.3.12  # If using the Raspberry Pi camera module 
+# picamera2>=0.3.12  # If using the Raspberry Pi camera module
