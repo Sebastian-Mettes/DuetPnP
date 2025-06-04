@@ -20,6 +20,7 @@ class PnPLayer:
         self.camera_lower = VisionTools(0)  # Upward Facing Camera
         self.camera_upper = VisionTools(2)  # Downward Facing Camera
         self.load_config(config_file)
+        self.load_camera_offset()
         
         if calibrate_tool:
             self.calibrate_tools()
@@ -63,6 +64,16 @@ class PnPLayer:
                 
         except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
             raise ValueError(f"Error loading configuration: {str(e)}")
+            
+    def load_camera_offset(self) -> None:
+        """Load camera offset from calibration file."""
+        try:
+            with open('camera_offset.json', 'r') as f:
+                self.camera_offset = json.load(f)
+            print("Loaded camera offset:", self.camera_offset)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Warning: Could not load camera offset: {str(e)}")
+            self.camera_offset = {'X': 0, 'Y': 0, 'Z': 0}
             
     def calibrate_tools(self) -> None:
         """Calibrate all tools using vision system."""
@@ -186,9 +197,12 @@ class PnPLayer:
         if result is None:
             return None
             
-        # Convert pixel coordinates to machine coordinates
-        # TODO: Implement coordinate transformation
-        return result
+        # Convert pixel coordinates to machine coordinates and apply camera offset
+        x = result[0] + self.camera_offset['X']
+        y = result[1] + self.camera_offset['Y']
+        rotation = result[2]
+        
+        return (x, y, rotation)
         
     def place_components(self) -> None:
         """
@@ -265,9 +279,9 @@ class PnPLayer:
                 print("Moving to placement location...")
                 self.printer.send_gcode_command("G0 Z150 F6000")  # Safe height first
                 
-                # Calculate final position with offsets
-                final_x = placement['x'] - x_offset
-                final_y = placement['y'] - y_offset
+                # Calculate final position with offsets and camera offset
+                final_x = placement['x'] - x_offset - self.camera_offset['X']
+                final_y = placement['y'] - y_offset - self.camera_offset['Y']
                 final_r = placement['rotation'] - rot_offset
                 
                 # Move to position
