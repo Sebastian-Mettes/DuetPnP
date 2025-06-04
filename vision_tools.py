@@ -4,13 +4,14 @@ from typing import Tuple, List, Optional, Dict
 from collections import defaultdict
 import json
 import os
+import sys
 
 class VisionTools:
     """
     A class to handle computer vision operations for toolhead calibration.
     
     This class provides methods to capture and process camera images,
-    detect tools, and perform calibration-related vision tasks.
+    detect tools, and perform calibration-relatedd vision tasks.
     
     Attributes:
         camera: OpenCV video capture object
@@ -24,7 +25,8 @@ class VisionTools:
         """
         Initialize VisionTools with camera and default parameters.
         """
-        self.camera = cv2.VideoCapture(camera_number)
+        self.camera_number = camera_number
+        self.camera = cv2.VideoCapture(self.camera_number)
         if not self.camera.isOpened():
             raise RuntimeError("Could not open camera")
         
@@ -111,12 +113,13 @@ class VisionTools:
             tuple: (x, y) pixel coordinates of detected tool center
             None: If no tool can be detected
         """
-        # Load parameters from file
+        # Load parameters from camera-specific file
+        params_file = f"vision_params_camera{self.camera_number}.json"
         try:
-            with open("vision_params.json", 'r') as f:
+            with open(params_file, 'r') as f:
                 params = json.load(f)
         except FileNotFoundError:
-            print("No vision parameters found. Run vision_tools.py first to create parameter file.")
+            print(f"No vision parameters found for camera {self.camera_number}. Run vision_tools.py first to create parameter file.")
             return None
         
         # Extract parameters
@@ -551,8 +554,11 @@ if __name__ == "__main__":
     import json
     import os
 
-    # Default parameter file location
-    PARAMS_FILE = "vision_params.json"
+    # Get camera number from command line or use default
+    camera_number = int(sys.argv[1]) if len(sys.argv) > 1 else 0
+    
+    # Default parameter file location (camera-specific)
+    PARAMS_FILE = f"vision_params_camera{camera_number}.json"
 
     # Load parameters if file exists
     if os.path.exists(PARAMS_FILE):
@@ -589,8 +595,8 @@ if __name__ == "__main__":
                 }
         }
 
-    # Initialize vision tools
-    vision = VisionTools()
+    # Initialize vision tools with camera number
+    vision = VisionTools(camera_number)
 
     # Create windows for trackbars
     cv2.namedWindow('HSV Controls')
@@ -710,7 +716,7 @@ if __name__ == "__main__":
     print("- If multiple circles are found >200px apart, click the correct one")
     print("- Press 'q' to quit the test")
     
-#    vision = VisionTools()
+#    vision = VisionTools(
     try:
         while True:
             tool_pos = vision.find_tool_position()

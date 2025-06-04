@@ -1,6 +1,7 @@
 from dsf.connections import CommandConnection
 from vision_tools import VisionTools
 import time
+import json
 
 
 class CalibrateToolheads:
@@ -290,7 +291,7 @@ class CalibrateToolheads:
             print(f"Unexpected error setting tool offset: {str(e)}")
             raise
 
-    def calibrate_with_camera(self, toolhead_number):
+    def calibrate_tool_with_camera(self, toolhead_number, camera=0, deselect_tool=True):
         """
         Prepare a specific toolhead for calibration and center it in the camera view.
         Uses computer vision to locate the tool and iteratively moves it to the center.
@@ -298,6 +299,8 @@ class CalibrateToolheads:
         
         Args:
             toolhead_number (int): The number of the toolhead to calibrate
+            camera (int): Camera number to use (0 for lower camera, 2 for upper camera)
+            deselect_tool (bool): Whether to deselect the tool after calibration
             
         Returns:
             bool: True if calibration successful, False if tool cannot be centered
@@ -310,15 +313,19 @@ class CalibrateToolheads:
         self.send_gcode_command("G0 Z166.41 F6000", check=False)
         
         # Move to approximate camera XY position
+        if camera == 0:
+            self.send_gcode_command("M106 P3 S255") #Turn on LED Ring    
+        else:
+            self.send_gcode_command("M106 P4 S255") #Turn on LED Ring 
         self.send_gcode_command(f"G0 X{self.camera_location[0]} Y{self.camera_location[1]} Z{self.camera_location[2]} F6000", check=False)
         time.sleep(1.5)
         # Constants for the centering algorithm
         MAX_ITERATIONS = 20  # Maximum number of attempts to center
         TOLERANCE = 2  # Pixels from center considered "centered"
-        INITIAL_PIXELS_TO_MM = 0.017  # Initial conversion factor
+        INITIAL_PIXELS_TO_MM = 0.015  # Initial conversion factor
         
         # Start Camera by instantiating VisionTools class
-        camera = VisionTools(0)
+        camera = VisionTools(camera)
         
         # Get image dimensions from vision tools and calculate center
         image_width, image_height = camera.get_image_dimensions()
@@ -335,7 +342,6 @@ class CalibrateToolheads:
             print(f"Tool pixel position: {tool_pos}")
             if tool_pos is None:
                 print("Could not detect tool in camera image")
-                
                 continue
             
             x_pixel, y_pixel = tool_pos
@@ -350,38 +356,26 @@ class CalibrateToolheads:
                 try:
                     self.set_tool_offset(self.camera_location, toolhead_number)
                     print("Tool offset successfully set relative to camera position")
-                    self.send_gcode_command("T-1", check=False)
+                    if camera == 0:
+                        self.send_gcode_command("M106 P3 S0") #Turn off LED Ring
+                    else:
+                        self.send_gcode_command("M106 P4 S0") #Turn off LED Ring
+                    if deselect_tool:
+                        self.send_gcode_command("T-1", check=False)
                     return True
                 except Exception as e:
                     print(f"Failed to set tool offset: {str(e)}")
-                    self.send_gcode_command("T-1", check=False)
+                    if camera == 0:
+                        self.send_gcode_command("M106 P3 S0") #Turn off LED Ring
+                    else:
+                        self.send_gcode_command("M106 P4 S0") #Turn off LED Ring
+                    if deselect_tool:
+                        self.send_gcode_command("T-1", check=False)
                     return False
             
             # Get current machine position
             self.send_gcode_command("M114", check=False)
             current_pos = self.parse_position(self.response)
-            
-            # Calculate pixels_to_mm based on previous movement if available
-            # if previous_pos is not None and previous_pixel_pos is not None:
-                # Calculate actual movement in mm
-                # dx_mm = current_pos['X'] - previous_pos['X']
-                # dy_mm = current_pos['Y'] - previous_pos['Y']
-                
-                # Calculate pixel movement
-                # dx_pixels = previous_pixel_pos[0] - x_pixel
-                # dy_pixels = previous_pixel_pos[1] - y_pixel
-                
-                # Update conversion factors if movement was significant (avoid division by zero or tiny movements)
-                # if abs(dx_mm) > 0.1 and abs(dx_pixels) > 2:
-                #     pixels_to_mm_x = abs(dx_pixels / dx_mm)
-                
-                # if abs(dy_mm) > 0.1 and abs(dy_pixels) > 2:
-                #     pixels_to_mm_y = abs(dy_pixels / dy_mm)
-                    
-                # Use average of X and Y conversion factors if both are valid
-                # if 'pixels_to_mm_x' in locals() and 'pixels_to_mm_y' in locals():
-                #     pixels_to_mm = (pixels_to_mm_x + pixels_to_mm_y) / 2
-                #     print(f"Updated pixels_to_mm: {pixels_to_mm:.4f}")
             
             # Store current positions for next iteration
             previous_pos = current_pos
@@ -405,6 +399,124 @@ class CalibrateToolheads:
             print(f"Centering iteration {iteration}: offset (pixels) = ({x_offset}, {y_offset}), move (mm) = ({x_move:.3f}, {y_move:.3f})")
         
         print("Failed to center tool after maximum iterations")
+        if camera == 0:
+            self.send_gcode_command("M106 P3 S0") #Turn off LED Ring    
+        else:
+            self.send_gcode_command("M106 P4 S0") #Turn off LED Ring 
+        if deselect_tool:
+            self.send_gcode_command("T-1", check=False) #Deselect tool
+        return False
+
+    def calibrate_camera_with_camera(self, tool, camera=2):
+        """
+        Calibrate the upper camera (camera 2) using the lower camera (camera 0) as reference.
+        
+        Args:
+            tool (int): Tool number to use (should be tool 3 - upper camera tool)
+            camera (int): Camera number to use (default 2 for upper camera)
+            
+        Returns:
+            bool: True if calibration successful, False otherwise
+        """
+        # First, use lower camera to position the upper camera tool
+        print("Step 1: Positioning upper camera tool using lower camera...")
+        if not self.calibrate_tool_with_camera(tool, camera=0, deselect_tool=False):
+            print("Failed to position upper camera tool using lower camera")
+            return False
+            
+        # Get the position where the tool is centered in lower camera
+        self.send_gcode_command("M114", check=False)
+        lower_camera_position = self.parse_position(self.response)
+        print(f"Position when centered in lower camera: {lower_camera_position}")
+        
+        # Now use upper camera to find the lower camera
+        print("\nStep 2: Using upper camera to find lower camera...")
+        # Initialize upper camera
+        upper_camera = VisionTools(camera)
+        
+        # Constants for the centering algorithm
+        MAX_ITERATIONS = 20
+        TOLERANCE = 2
+        INITIAL_PIXELS_TO_MM = 0.015
+        
+        # Get image dimensions and calculate center
+        image_width, image_height = upper_camera.get_image_dimensions()
+        IMAGE_CENTER = (image_width // 2, image_height // 2)
+        print(f"Image center: {IMAGE_CENTER}")
+        
+        iteration = 0
+        pixels_to_mm = INITIAL_PIXELS_TO_MM
+        previous_pos = None
+        previous_pixel_pos = None
+        
+        while iteration < MAX_ITERATIONS:
+            # Get lower camera position in upper camera image
+            tool_pos = upper_camera.find_tool_position()
+            print(f"Lower camera pixel position: {tool_pos}")
+            if tool_pos is None:
+                print("Could not detect lower camera in upper camera view")
+                continue
+            
+            x_pixel, y_pixel = tool_pos
+            x_offset = IMAGE_CENTER[0] - x_pixel
+            y_offset = IMAGE_CENTER[1] - y_pixel
+            
+            # Check if we're centered within tolerance
+            if abs(x_offset) <= TOLERANCE and abs(y_offset) <= TOLERANCE:
+                print("Lower camera successfully centered in upper camera view")
+                # Get final position
+                self.send_gcode_command("M114", check=False)
+                upper_camera_position = self.parse_position(self.response)
+                print(f"Position when centered in upper camera: {upper_camera_position}")
+                
+                # Calculate the offset between the two positions
+                camera_offset = {
+                    'X': upper_camera_position['X'] - lower_camera_position['X'],
+                    'Y': upper_camera_position['Y'] - lower_camera_position['Y'],
+                    'Z': upper_camera_position['Z'] - lower_camera_position['Z']
+                }
+                print(f"Camera offset: {camera_offset}")
+                
+                # Save the offset to a file for future use
+                try:
+                    with open('camera_offset.json', 'w') as f:
+                        json.dump(camera_offset, f, indent=4)
+                    print("Camera offset saved to camera_offset.json")
+                except Exception as e:
+                    print(f"Failed to save camera offset: {str(e)}")
+                
+                # Clean up
+                self.send_gcode_command("M106 P4 S0") #Turn off LED Ring
+                self.send_gcode_command("T-1", check=False)
+                return True
+            
+            # Get current machine position
+            self.send_gcode_command("M114", check=False)
+            current_pos = self.parse_position(self.response)
+            
+            # Store current positions for next iteration
+            previous_pos = current_pos
+            previous_pixel_pos = (x_pixel, y_pixel)
+            
+            # Calculate move distance using current conversion factor
+            x_move = -y_offset * pixels_to_mm
+            y_move = x_offset * pixels_to_mm
+            
+            # Calculate new position
+            new_x = current_pos['X'] + x_move
+            new_y = current_pos['Y'] + y_move
+            
+            # Move to new position slowly
+            self.send_gcode_command(f"G0 X{new_x:.3f} Y{new_y:.3f} F1200", check=False)
+            print(f"Moved to new position: X{new_x:.3f} Y{new_y:.3f}")
+            time.sleep(1.5)
+            
+            iteration += 1
+            print(f"Centering iteration {iteration}: offset (pixels) = ({x_offset}, {y_offset}), move (mm) = ({x_move:.3f}, {y_move:.3f})")
+        
+        print("Failed to center lower camera in upper camera view after maximum iterations")
+        self.send_gcode_command("M106 P4 S0") #Turn off LED Ring
+        self.send_gcode_command("T-1", check=False)
         return False
 
 
@@ -417,9 +529,11 @@ if __name__ == "__main__":
     Printer = CalibrateToolheads()
 #    Printer.home()
 #    Printer.calibrate_with_camera(0)
-    Printer.calibrate_with_camera(0)
-    Printer.calibrate_with_camera(1)
-    Printer.calibrate_with_camera(2)
+    Printer.calibrate_tool_with_camera(0)
+    Printer.calibrate_tool_with_camera(1)
+    Printer.calibrate_tool_with_camera(2)
+    Printer.calibrate_tool_with_camera(3)
+    Printer.calibrate_camera_with_camera(3,camera = 2)
     Printer.close()
 
 
@@ -448,7 +562,7 @@ VALID_GCODES = [
     'M26', 'M27', 'M28', 'M29', 'M30', 'M32', 'M36', 'M37',
     'M38', 'M39', 'M42',
     
-    # Temperature Control
+    # Temperature and fan Control
     'M104', 'M105', 'M106', 'M107', 'M108', 'M109',
     'M116', 'M140', 'M141', 'M143', 'M144', 'M190', 'M191',
     
