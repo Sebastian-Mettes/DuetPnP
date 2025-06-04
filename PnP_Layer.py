@@ -8,14 +8,15 @@ from vision_tools import VisionTools
 import time
 
 class PnPLayer:
-    def __init__(self, config_file: str):
+    def __init__(self, config_file: str, calibrate_tool: bool = False):
         """
         Initialize PnP layer with configuration file.
         
         Args:
             config_file (str): Path to JSON configuration file containing component placements
         """
-        self.printer = CalibrateToolheads()
+        if calibrate_tool:
+            self.printer = CalibrateToolheads()
         self.camera = VisionTools()
         self.load_config(config_file)
         
