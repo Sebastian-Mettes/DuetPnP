@@ -20,7 +20,7 @@ class CalibrateToolheads:
 
         self.connection = CommandConnection(debug=False)
         self.connection.connect()
-        self.camera_location = [-14.5,-39,55] #Camera coordinates, XYZ
+        self.camera_location = [21.6,-59.7,166.41] #Camera coordinates, XYZ
 
 
 
@@ -216,7 +216,7 @@ class CalibrateToolheads:
         Takes into account axis mappings for the tool.
         
         Args:
-            expected_position (list): The expected XYZ coordinates [X, Y, Z]
+            expected_position (list): The expected XYZ coordinates [X, Y]
             toolhead_number (int): The number of the toolhead to set the offset for
             
         Raises:
@@ -270,6 +270,7 @@ class CalibrateToolheads:
             offset_params = ' '.join(
                 f"{axis}{value:.3f}" for axis, value in new_offsets.items()
             )
+            print('offset params built')
             self.send_gcode_command(
                 f"G10 P{toolhead_number} {offset_params}",
                 check=False
@@ -306,18 +307,18 @@ class CalibrateToolheads:
         self.send_gcode_command(f"T{toolhead_number}", check=False)
         
         # Move to safe Z height first
-        self.send_gcode_command("G0 Z50 F6000", check=False)
+        self.send_gcode_command("G0 Z166.41 F6000", check=False)
         
         # Move to approximate camera XY position
-        self.send_gcode_command(f"G0 X{self.camera_location[0]} Y{self.camera_location[1]} F6000", check=False)
+        self.send_gcode_command(f"G0 X{self.camera_location[0]} Y{self.camera_location[1]} Z{self.camera_location[2]} F6000", check=False)
         time.sleep(1.5)
         # Constants for the centering algorithm
         MAX_ITERATIONS = 20  # Maximum number of attempts to center
-        TOLERANCE = 0  # Pixels from center considered "centered"
-        INITIAL_PIXELS_TO_MM = 0.04  # Initial conversion factor
+        TOLERANCE = 2  # Pixels from center considered "centered"
+        INITIAL_PIXELS_TO_MM = 0.017  # Initial conversion factor
         
         # Start Camera by instantiating VisionTools class
-        camera = VisionTools()
+        camera = VisionTools(0)
         
         # Get image dimensions from vision tools and calculate center
         image_width, image_height = camera.get_image_dimensions()
@@ -334,6 +335,7 @@ class CalibrateToolheads:
             print(f"Tool pixel position: {tool_pos}")
             if tool_pos is None:
                 print("Could not detect tool in camera image")
+                
                 continue
             
             x_pixel, y_pixel = tool_pos
@@ -348,9 +350,11 @@ class CalibrateToolheads:
                 try:
                     self.set_tool_offset(self.camera_location, toolhead_number)
                     print("Tool offset successfully set relative to camera position")
+                    self.send_gcode_command("T-1", check=False)
                     return True
                 except Exception as e:
                     print(f"Failed to set tool offset: {str(e)}")
+                    self.send_gcode_command("T-1", check=False)
                     return False
             
             # Get current machine position
@@ -384,8 +388,8 @@ class CalibrateToolheads:
             previous_pixel_pos = (x_pixel, y_pixel)
             
             # Calculate move distance using current conversion factor
-            y_move = -y_offset * pixels_to_mm #May need to be modified based on camera orientation
-            x_move = -x_offset * pixels_to_mm
+            x_move = -y_offset * pixels_to_mm #May need to be modified based on camera orientation
+            y_move = x_offset * pixels_to_mm
             
             # Calculate new position
             new_x = current_pos['X'] + x_move
@@ -415,6 +419,7 @@ if __name__ == "__main__":
 #    Printer.calibrate_with_camera(0)
     Printer.calibrate_with_camera(0)
     Printer.calibrate_with_camera(1)
+    Printer.calibrate_with_camera(2)
     Printer.close()
 
 

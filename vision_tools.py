@@ -20,23 +20,23 @@ class VisionTools:
         hsv_upper (np.array): Upper bounds for HSV color filtering
     """
 
-    def __init__(self):
+    def __init__(self,camera_number):
         """
         Initialize VisionTools with camera and default parameters.
         """
-        self.camera = cv2.VideoCapture(0)
+        self.camera = cv2.VideoCapture(camera_number)
         if not self.camera.isOpened():
             raise RuntimeError("Could not open camera")
         
         # Set 720p resolution (1280x720)
-        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 3840)
-        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 3040)
+        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
         
         # Verify resolution was set correctly
         actual_width = int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH))
         actual_height = int(self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
         
-        if actual_width != 3840 or actual_height != 3040:
+        if actual_width != 1280 or actual_height != 960:
             print(f"Warning: Could not set 720p resolution. Actual resolution: {actual_width}x{actual_height}")
             # Try to set the closest supported resolution
             if actual_width < 1280:
@@ -675,15 +675,15 @@ if __name__ == "__main__":
                     circles = np.uint16(np.around(circles))
                     for i in circles[0, :]:
                         # Draw outer circle
-                        cv2.circle(output, (i[0], i[1]), i[2], (0, 255, 0), 2)
+                        cv2.circle(gray, (i[0], i[1]), i[2], (0, 255, 0), 2)
                         # Draw center point
-                        cv2.circle(output, (i[0], i[1]), 2, (0, 0, 255), 3)
+                        cv2.circle(gray, (i[0], i[1]), 2, (0, 0, 255), 3)
                         # Add radius text
-                        cv2.putText(output, f"r={i[2]}", (i[0]+10, i[1]), 
+                        cv2.putText(gray, f"r={i[2]}", (i[0]+10, i[1]), 
                                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
                 # Show only the output image
-                cv2.imshow('Camera Feed', output)
+                cv2.imshow('Camera Feed', gray)
 
             # Check for quit
             key = cv2.waitKey(1) & 0xFF
