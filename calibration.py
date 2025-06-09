@@ -2,7 +2,67 @@ from dsf.connections import CommandConnection
 from vision_tools import VisionTools
 import time
 import json
+import cv2
 
+VALID_GCODES = [
+    # Motion G-codes
+    'G0', 'G1', 'G2', 'G3', 'G4', 'G28',
+    
+    # Probe G-codes
+    'G29', 'G30', 'G31', 'G32',
+    'G38.2', 'G38.3', 'G38.4', 'G38.5',
+    
+    # Units and Positioning G-codes
+    'G17', 'G18', 'G19', 'G20', 'G21',
+    'G53', 'G54', 'G55', 'G56', 'G57', 'G58', 'G59',
+    'G59.1', 'G59.2', 'G59.3', 'G60', 'G68', 'G69',
+    'G90', 'G91', 'G92',
+    
+    # Retraction G-codes
+    'G10', 'G11',
+    
+    # M-codes for Machine Control
+    'M0', 'M1', 'M3', 'M4', 'M5',
+    'M17', 'M18', 'M20', 'M21', 'M22', 'M23', 'M24', 'M25',
+    'M26', 'M27', 'M28', 'M29', 'M30', 'M32', 'M36', 'M37',
+    'M38', 'M39', 'M42',
+    
+    # Temperature and fan Control
+    'M104', 'M105', 'M106', 'M107', 'M108', 'M109',
+    'M116', 'M140', 'M141', 'M143', 'M144', 'M190', 'M191',
+    
+    # Configuration and Status
+    'M111', 'M114', 'M115', 'M119', 'M122',
+    'M280', 'M290', 'M291', 'M292', 'M300',
+    
+    # Settings and Storage
+    'M500', 'M501', 'M502', 'M503', 'M505',
+    
+    # Network and Communication
+    'M550', 'M551', 'M552', 'M553', 'M554',
+    'M555', 'M556', 'M557', 'M558', 'M559', 'M560',
+    
+    # Tool Control
+    'M563', 'M567', 'M568', 'M569',
+    'M569.1', 'M569.2', 'M569.3', 'M569.4', 'M569.5', 'M569.6', 'M569.7',
+    
+    # Motion Control
+    'M201', 'M201.1', 'M203', 'M204', 'M205', 'M206', 'M207', 'M208',
+    'M220', 'M221', 'M566', 'M567', 'M568', 'M569', 'M570',
+    
+    # Special Functions
+    'M581', 'M582', 'M584', 'M585', 'M586', 'M587', 'M588', 'M589',
+    'M591', 'M592', 'M593', 'M594', 'M595',
+    
+    # Power and Emergency
+    'M80', 'M81', 'M112', 'M999',
+    
+    # Filament Control
+    'M600', 'M701', 'M702', 'M703',
+
+    # Toolhead G-codes
+    'T-1', 'T0', 'T1', 'T2',
+]
 
 class CalibrateToolheads:
     """
@@ -291,7 +351,7 @@ class CalibrateToolheads:
             print(f"Unexpected error setting tool offset: {str(e)}")
             raise
 
-    def calibrate_tool_with_camera(self, toolhead_number, camera=0, deselect_tool=True):
+    def calibrate_tool_with_camera(self, toolhead_number, target='tool', camera=0, deselect_tool=True):
         """
         Prepare a specific toolhead for calibration and center it in the camera view.
         Uses computer vision to locate the tool and iteratively moves it to the center.
@@ -299,6 +359,7 @@ class CalibrateToolheads:
         
         Args:
             toolhead_number (int): The number of the toolhead to calibrate
+            target (str): What to look for - 'tool' or 'camera'
             camera (int): Camera number to use (0 for lower camera, 2 for upper camera)
             deselect_tool (bool): Whether to deselect the tool after calibration
             
@@ -314,23 +375,73 @@ class CalibrateToolheads:
         
         # Move to approximate camera XY position
         if camera == 0:
-            self.send_gcode_command("M106 P3 S255") #Turn on LED Ring    
+            self.send_gcode_command("M106 P4 S255") #Turn on LED Ring for lower camera    
+        elif camera == 2:
+            self.send_gcode_command("M106 P3 S255") #Turn on LED Ring for upper camera
         else:
-            self.send_gcode_command("M106 P4 S255") #Turn on LED Ring 
+            raise ValueError(f"Invalid camera number: {camera}. Must be 0 (lower) or 2 (upper)")
+            
         self.send_gcode_command(f"G0 X{self.camera_location[0]} Y{self.camera_location[1]} Z{self.camera_location[2]} F6000", check=False)
         time.sleep(1.5)
+
+        # Initialize vision tools
+        vision = VisionTools(camera, target)
+        
+        # Get image dimensions and calculate center
+        image_width, image_height = vision.get_image_dimensions()
+        IMAGE_CENTER = (image_width // 2, image_height // 2)
+        print(f"Image center: {IMAGE_CENTER}")
+
+        # Mouse callback for target confirmation
+        def mouse_callback(event, x, y, flags, param):
+            if event == cv2.EVENT_LBUTTONDOWN:
+                mouse_callback.confirmed = True
+                print("Target confirmed by user click")
+
+        # Create window and set mouse callback
+        cv2.namedWindow('Confirm Target')
+        mouse_callback.confirmed = False
+        cv2.setMouseCallback('Confirm Target', mouse_callback)
+
+        print("\nPlease confirm the target:")
+        print("1. Look for the detected target in the window")
+        print("2. Click on the target to confirm it's correct")
+        print("3. Press 'q' to cancel")
+
+        # Wait for target confirmation
+        while not mouse_callback.confirmed:
+            frame = vision.capture_frame()
+            if frame is not None:
+                # Get tool position in camera image
+                tool_pos = vision.find_tool_position()
+                if tool_pos is not None:
+                    x_pixel, y_pixel = tool_pos
+                    # Draw larger circle at detected position
+                    cv2.circle(frame, (x_pixel, y_pixel), 20, (0, 255, 0), 3)  # Increased radius and thickness
+                    cv2.putText(frame, "Click to confirm target", (10, 60),  # Moved text down
+                              cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 3)  # Increased font size and thickness
+                
+                cv2.imshow('Confirm Target', frame)
+            
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                print("Target confirmation cancelled")
+                cv2.destroyWindow('Confirm Target')
+                if camera == 0:
+                    self.send_gcode_command("M106 P4 S0")
+                elif camera == 2:
+                    self.send_gcode_command("M106 P3 S0")
+                if deselect_tool:
+                    self.send_gcode_command("T-1", check=False)
+                return False
+
+        cv2.destroyWindow('Confirm Target')
+        print("Target confirmed, proceeding with calibration...")
+
         # Constants for the centering algorithm
         MAX_ITERATIONS = 20  # Maximum number of attempts to center
         TOLERANCE = 2  # Pixels from center considered "centered"
         INITIAL_PIXELS_TO_MM = 0.015  # Initial conversion factor
         
-        # Start Camera by instantiating VisionTools class
-        camera = VisionTools(camera)
-        
-        # Get image dimensions from vision tools and calculate center
-        image_width, image_height = camera.get_image_dimensions()
-        IMAGE_CENTER = (image_width // 2, image_height // 2)
-        print(f"Image center: {IMAGE_CENTER}")
         iteration = 0
         pixels_to_mm = INITIAL_PIXELS_TO_MM  # Start with initial conversion factor
         previous_pos = None
@@ -338,7 +449,7 @@ class CalibrateToolheads:
         
         while iteration < MAX_ITERATIONS:
             # Get tool position in camera image
-            tool_pos = camera.find_tool_position()
+            tool_pos = vision.find_tool_position()
             print(f"Tool pixel position: {tool_pos}")
             if tool_pos is None:
                 print("Could not detect tool in camera image")
@@ -357,18 +468,18 @@ class CalibrateToolheads:
                     self.set_tool_offset(self.camera_location, toolhead_number)
                     print("Tool offset successfully set relative to camera position")
                     if camera == 0:
-                        self.send_gcode_command("M106 P3 S0") #Turn off LED Ring
-                    else:
-                        self.send_gcode_command("M106 P4 S0") #Turn off LED Ring
+                        self.send_gcode_command("M106 P4 S0") #Turn off LED Ring for lower camera
+                    elif camera == 2:
+                        self.send_gcode_command("M106 P3 S0") #Turn off LED Ring for upper camera
                     if deselect_tool:
                         self.send_gcode_command("T-1", check=False)
                     return True
                 except Exception as e:
                     print(f"Failed to set tool offset: {str(e)}")
                     if camera == 0:
-                        self.send_gcode_command("M106 P3 S0") #Turn off LED Ring
-                    else:
-                        self.send_gcode_command("M106 P4 S0") #Turn off LED Ring
+                        self.send_gcode_command("M106 P4 S0") #Turn off LED Ring for lower camera
+                    elif camera == 2:
+                        self.send_gcode_command("M106 P3 S0") #Turn off LED Ring for upper camera
                     if deselect_tool:
                         self.send_gcode_command("T-1", check=False)
                     return False
@@ -382,7 +493,7 @@ class CalibrateToolheads:
             previous_pixel_pos = (x_pixel, y_pixel)
             
             # Calculate move distance using current conversion factor
-            x_move = -y_offset * pixels_to_mm #May need to be modified based on camera orientation
+            x_move = -y_offset * pixels_to_mm
             y_move = x_offset * pixels_to_mm
             
             # Calculate new position
@@ -400,9 +511,9 @@ class CalibrateToolheads:
         
         print("Failed to center tool after maximum iterations")
         if camera == 0:
-            self.send_gcode_command("M106 P3 S0") #Turn off LED Ring    
-        else:
-            self.send_gcode_command("M106 P4 S0") #Turn off LED Ring 
+            self.send_gcode_command("M106 P4 S0") #Turn off LED Ring for lower camera    
+        elif camera == 2:
+            self.send_gcode_command("M106 P3 S0") #Turn off LED Ring for upper camera
         if deselect_tool:
             self.send_gcode_command("T-1", check=False) #Deselect tool
         return False
@@ -420,29 +531,74 @@ class CalibrateToolheads:
         """
         # First, use lower camera to position the upper camera tool
         print("Step 1: Positioning upper camera tool using lower camera...")
-        if not self.calibrate_tool_with_camera(tool, camera=0, deselect_tool=False):
+        if not self.calibrate_tool_with_camera(tool, camera=0, target='camera', deselect_tool=False):
             print("Failed to position upper camera tool using lower camera")
             return False
             
-        # Get the position where the tool is centered in lower camera
+        # Get the position where the tool is centered in lower (calibraiton) camera view
         self.send_gcode_command("M114", check=False)
         lower_camera_position = self.parse_position(self.response)
         print(f"Position when centered in lower camera: {lower_camera_position}")
         
         # Now use upper camera to find the lower camera
         print("\nStep 2: Using upper camera to find lower camera...")
-        # Initialize upper camera
-        upper_camera = VisionTools(camera)
+        # Turn on LED for upper camera
+        self.send_gcode_command("M106 P3 S255") #Turn on LED Ring for upper camera
+        time.sleep(1.5)  # Give LED time to stabilize
         
-        # Constants for the centering algorithm
-        MAX_ITERATIONS = 20
-        TOLERANCE = 2
-        INITIAL_PIXELS_TO_MM = 0.015
+        # Initialize upper camera with correct target type
+        upper_camera = VisionTools(camera, target='camera')  # Use camera 2 to look for camera
         
         # Get image dimensions and calculate center
         image_width, image_height = upper_camera.get_image_dimensions()
         IMAGE_CENTER = (image_width // 2, image_height // 2)
         print(f"Image center: {IMAGE_CENTER}")
+
+        # Mouse callback for target confirmation
+        def mouse_callback(event, x, y, flags, param):
+            if event == cv2.EVENT_LBUTTONDOWN:
+                mouse_callback.confirmed = True
+                print("Target confirmed by user click")
+
+        # Create window and set mouse callback
+        cv2.namedWindow('Confirm Target')
+        mouse_callback.confirmed = False
+        cv2.setMouseCallback('Confirm Target', mouse_callback)
+
+        print("\nPlease confirm the target:")
+        print("1. Look for the detected target in the window")
+        print("2. Click on the target to confirm it's correct")
+        print("3. Press 'q' to cancel")
+
+        # Wait for target confirmation
+        while not mouse_callback.confirmed:
+            frame = upper_camera.capture_frame()
+            if frame is not None:
+                # Get tool position in camera image
+                tool_pos = upper_camera.find_tool_position()
+                if tool_pos is not None:
+                    x_pixel, y_pixel = tool_pos
+                    # Draw larger circle at detected position
+                    cv2.circle(frame, (x_pixel, y_pixel), 20, (0, 255, 0), 3)  # Increased radius and thickness
+                    cv2.putText(frame, "Click to confirm target", (10, 60),  # Moved text down
+                              cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 3)  # Increased font size and thickness
+                
+                cv2.imshow('Confirm Target', frame)
+            
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                print("Target confirmation cancelled")
+                cv2.destroyWindow('Confirm Target')
+                self.send_gcode_command("M106 P3 S0")
+                self.send_gcode_command("T-1", check=False)
+                return False
+
+        cv2.destroyWindow('Confirm Target')
+        print("Target confirmed, proceeding with calibration...")
+
+        # Constants for the centering algorithm
+        MAX_ITERATIONS = 20
+        TOLERANCE = 2
+        INITIAL_PIXELS_TO_MM = 0.015
         
         iteration = 0
         pixels_to_mm = INITIAL_PIXELS_TO_MM
@@ -451,7 +607,7 @@ class CalibrateToolheads:
         
         while iteration < MAX_ITERATIONS:
             # Get lower camera position in upper camera image
-            tool_pos = upper_camera.find_tool_position()
+            tool_pos = upper_camera.find_tool_position() #Find the circle identifying the camera lens of lower camera.
             print(f"Lower camera pixel position: {tool_pos}")
             if tool_pos is None:
                 print("Could not detect lower camera in upper camera view")
@@ -486,7 +642,7 @@ class CalibrateToolheads:
                     print(f"Failed to save camera offset: {str(e)}")
                 
                 # Clean up
-                self.send_gcode_command("M106 P4 S0") #Turn off LED Ring
+                self.send_gcode_command("M106 P3 S0") #Turn off LED Ring for upper camera
                 self.send_gcode_command("T-1", check=False)
                 return True
             
@@ -499,8 +655,8 @@ class CalibrateToolheads:
             previous_pixel_pos = (x_pixel, y_pixel)
             
             # Calculate move distance using current conversion factor
-            x_move = -y_offset * pixels_to_mm
-            y_move = x_offset * pixels_to_mm
+            x_move = -x_offset * pixels_to_mm
+            y_move = y_offset * pixels_to_mm
             
             # Calculate new position
             new_x = current_pos['X'] + x_move
@@ -509,13 +665,13 @@ class CalibrateToolheads:
             # Move to new position slowly
             self.send_gcode_command(f"G0 X{new_x:.3f} Y{new_y:.3f} F1200", check=False)
             print(f"Moved to new position: X{new_x:.3f} Y{new_y:.3f}")
-            time.sleep(1.5)
+            time.sleep(0.5)
             
             iteration += 1
             print(f"Centering iteration {iteration}: offset (pixels) = ({x_offset}, {y_offset}), move (mm) = ({x_move:.3f}, {y_move:.3f})")
         
         print("Failed to center lower camera in upper camera view after maximum iterations")
-        self.send_gcode_command("M106 P4 S0") #Turn off LED Ring
+        self.send_gcode_command("M106 P3 S0") #Turn off LED Ring for upper camera
         self.send_gcode_command("T-1", check=False)
         return False
 
@@ -527,74 +683,15 @@ class CalibrateToolheads:
 
 if __name__ == "__main__":
     Printer = CalibrateToolheads()
-#    Printer.home()
-#    Printer.calibrate_with_camera(0)
-    Printer.calibrate_tool_with_camera(0)
-    Printer.calibrate_tool_with_camera(1)
-    Printer.calibrate_tool_with_camera(2)
-    Printer.calibrate_tool_with_camera(3)
-    Printer.calibrate_camera_with_camera(3,camera = 2)
-    Printer.close()
-
-
-
-
-VALID_GCODES = [
-    # Motion G-codes
-    'G0', 'G1', 'G2', 'G3', 'G4', 'G28',
-    
-    # Probe G-codes
-    'G29', 'G30', 'G31', 'G32',
-    'G38.2', 'G38.3', 'G38.4', 'G38.5',
-    
-    # Units and Positioning G-codes
-    'G17', 'G18', 'G19', 'G20', 'G21',
-    'G53', 'G54', 'G55', 'G56', 'G57', 'G58', 'G59',
-    'G59.1', 'G59.2', 'G59.3', 'G60', 'G68', 'G69',
-    'G90', 'G91', 'G92',
-    
-    # Retraction G-codes
-    'G10', 'G11',
-    
-    # M-codes for Machine Control
-    'M0', 'M1', 'M3', 'M4', 'M5',
-    'M17', 'M18', 'M20', 'M21', 'M22', 'M23', 'M24', 'M25',
-    'M26', 'M27', 'M28', 'M29', 'M30', 'M32', 'M36', 'M37',
-    'M38', 'M39', 'M42',
-    
-    # Temperature and fan Control
-    'M104', 'M105', 'M106', 'M107', 'M108', 'M109',
-    'M116', 'M140', 'M141', 'M143', 'M144', 'M190', 'M191',
-    
-    # Configuration and Status
-    'M111', 'M114', 'M115', 'M119', 'M122',
-    'M280', 'M290', 'M291', 'M292', 'M300',
-    
-    # Settings and Storage
-    'M500', 'M501', 'M502', 'M503', 'M505',
-    
-    # Network and Communication
-    'M550', 'M551', 'M552', 'M553', 'M554',
-    'M555', 'M556', 'M557', 'M558', 'M559', 'M560',
-    
-    # Tool Control
-    'M563', 'M567', 'M568', 'M569',
-    'M569.1', 'M569.2', 'M569.3', 'M569.4', 'M569.5', 'M569.6', 'M569.7',
-    
-    # Motion Control
-    'M201', 'M201.1', 'M203', 'M204', 'M205', 'M206', 'M207', 'M208',
-    'M220', 'M221', 'M566', 'M567', 'M568', 'M569', 'M570',
-    
-    # Special Functions
-    'M581', 'M582', 'M584', 'M585', 'M586', 'M587', 'M588', 'M589',
-    'M591', 'M592', 'M593', 'M594', 'M595',
-    
-    # Power and Emergency
-    'M80', 'M81', 'M112', 'M999',
-    
-    # Filament Control
-    'M600', 'M701', 'M702', 'M703',
-
-    # Toolhead G-codes
-    'T-1', 'T0', 'T1', 'T2',
-]
+    try:
+        #    Printer.home()
+        #    Printer.calibrate_with_camera(0)
+        Printer.calibrate_tool_with_camera(0,camera = 0)
+        Printer.calibrate_tool_with_camera(1,camera = 0)
+        Printer.calibrate_tool_with_camera(2,camera = 0)
+        Printer.calibrate_camera_with_camera(3,camera= 2)
+    finally:
+        # Ensure LEDs are turned off before closing
+        Printer.send_gcode_command("M106 P3 S0") #Turn off LED Ring for upper camera
+        Printer.send_gcode_command("M106 P4 S0") #Turn off LED Ring for lower camera
+        Printer.close()

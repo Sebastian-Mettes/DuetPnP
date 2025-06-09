@@ -1,0 +1,20 @@
+{
+    "hsv_lower": [
+        0,
+        0,
+        0
+    ],
+    "hsv_upper": [
+        180,
+        255,
+        255
+    ],
+    "circle_params": {
+        "dp": 0.3,
+        "minDist": 100,
+        "param1": 98,
+        "param2": 24,
+        "minRadius": 3,
+        "maxRadius": 28
+    }
+}

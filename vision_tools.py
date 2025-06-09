@@ -21,11 +21,16 @@ class VisionTools:
         hsv_upper (np.array): Upper bounds for HSV color filtering
     """
 
-    def __init__(self,camera_number):
+    def __init__(self,camera_number,target = 'tool'):
         """
         Initialize VisionTools with camera and default parameters.
+        
+        Args:
+            camera_number (int): Camera device number
+            target (str): Target type - either 'tool' or 'camera'
         """
         self.camera_number = camera_number
+        self.target = target
         self.camera = cv2.VideoCapture(self.camera_number)
         if not self.camera.isOpened():
             raise RuntimeError("Could not open camera")
@@ -114,12 +119,12 @@ class VisionTools:
             None: If no tool can be detected
         """
         # Load parameters from camera-specific file
-        params_file = f"vision_params_camera{self.camera_number}.json"
+        params_file = f"vision_params_camera{self.camera_number}_{self.target}.json"
         try:
             with open(params_file, 'r') as f:
                 params = json.load(f)
         except FileNotFoundError:
-            print(f"No vision parameters found for camera {self.camera_number}. Run vision_tools.py first to create parameter file.")
+            print(f"No vision parameters found for camera {self.camera_number} and target {self.target}. Run vision_tools.py first to create parameter file.")
             return None
         
         # Extract parameters
@@ -554,11 +559,16 @@ if __name__ == "__main__":
     import json
     import os
 
-    # Get camera number from command line or use default
+    # Get camera number and target from command line or use defaults
     camera_number = int(sys.argv[1]) if len(sys.argv) > 1 else 0
+    target = sys.argv[2] if len(sys.argv) > 2 else 'tool'
     
-    # Default parameter file location (camera-specific)
-    PARAMS_FILE = f"vision_params_camera{camera_number}.json"
+    if target not in ['tool', 'camera']:
+        print("Invalid target. Must be either 'tool' or 'camera'")
+        sys.exit(1)
+    
+    # Default parameter file location (camera and target specific)
+    PARAMS_FILE = f"vision_params_camera{camera_number}_{target}.json"
 
     # Load parameters if file exists
     if os.path.exists(PARAMS_FILE):
@@ -595,8 +605,8 @@ if __name__ == "__main__":
                 }
         }
 
-    # Initialize vision tools with camera number
-    vision = VisionTools(camera_number)
+    # Initialize vision tools with camera number and target
+    vision = VisionTools(camera_number, target)
 
     # Create windows for trackbars
     cv2.namedWindow('HSV Controls')
@@ -616,8 +626,8 @@ if __name__ == "__main__":
     cv2.createTrackbar('minDist', 'Circle Controls', params['circle_params']['minDist'], 100, lambda x: None)
     cv2.createTrackbar('param1', 'Circle Controls', params['circle_params']['param1'], 200, lambda x: None)
     cv2.createTrackbar('param2', 'Circle Controls', params['circle_params']['param2'], 100, lambda x: None)
-    cv2.createTrackbar('minRadius', 'Circle Controls', params['circle_params']['minRadius'], 100, lambda x: None)
-    cv2.createTrackbar('maxRadius', 'Circle Controls', params['circle_params']['maxRadius'], 200, lambda x: None)
+    cv2.createTrackbar('minRadius', 'Circle Controls', params['circle_params']['minRadius'], 399, lambda x: None)
+    cv2.createTrackbar('maxRadius', 'Circle Controls', params['circle_params']['maxRadius'], 400, lambda x: None)
 
     print("\nTesting find_tool_position function:")
     print("1. First run the parameter setting mode")
