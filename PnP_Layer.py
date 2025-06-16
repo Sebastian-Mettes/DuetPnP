@@ -212,11 +212,22 @@ class PnPLayer:
         self.printer.send_gcode_command("T3")  # Select upper camera tool
         self.printer.send_gcode_command("G0 Z150 F6000")  # Move to safe height
         
+        # Track number of components placed for each type
+        component_counts = {}
+        
         for component in self.config['components']:
             self.current_component = component
-            print(f"\nPlacing component type: {component['type']}")
+            component_type = component['type']
+            print(f"\nPlacing component type: {component_type}")
+            
+            # Initialize counter for this component type if not exists
+            if component_type not in component_counts:
+                component_counts[component_type] = 0
             
             for placement in component['placements']:
+                # Calculate Y offset based on number of components placed
+                y_offset = component_counts[component_type] * 4  # 4mm offset per component
+                
                 # Find component on reel using upper camera
                 print("Locating component on reel...")
                 component_pos = self.find_component_on_reel()
@@ -231,8 +242,11 @@ class PnPLayer:
                 # Move to component location and pick up
                 print("Picking up component...")
                 self.printer.send_gcode_command("G0 Z150 F6000")  # Safe height first
+                
+                # Adjust Y position based on component count
+                adjusted_y = component_pos[1] + y_offset
                 self.printer.send_gcode_command(
-                    f"G0 X{component_pos[0]} Y{component_pos[1]} F6000"
+                    f"G0 X{component_pos[0]} Y{adjusted_y} F6000"
                 )
                 time.sleep(1.0)
                 
@@ -299,6 +313,9 @@ class PnPLayer:
                 
                 # Move back to safe height
                 self.printer.send_gcode_command("G0 Z150 F6000")
+                
+                # Increment component counter for this type
+                component_counts[component_type] += 1
                 
         print("\nComponent placement complete!")
         
