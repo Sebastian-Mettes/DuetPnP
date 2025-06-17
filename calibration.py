@@ -61,7 +61,7 @@ VALID_GCODES = [
     'M600', 'M701', 'M702', 'M703',
 
     # Toolhead G-codes
-    'T-1', 'T0', 'T1', 'T2',
+    'T-1', 'T0', 'T1', 'T2', 'T3',
 ]
 
 class CalibrateToolheads:

@@ -6,6 +6,7 @@ from PnP_Layer import PnPLayer
 from calibration import CalibrateToolheads
 from vision_tools import VisionTools
 import time
+import os
 
 class PnPTesting:
     def __init__(self):
@@ -28,6 +29,7 @@ class PnPTesting:
     def find_target_with_camera(self, location: Tuple[float, float, float], template_path: str) -> None:
         """
         Move camera to position and look for target using template matching.
+        Includes automatic centering functionality.
         
         Args:
             location: (X, Y, Z) coordinates to move camera to
@@ -49,14 +51,31 @@ class PnPTesting:
         x, y, z = location
         self.printer.send_gcode_command(f"G0 Z150 F6000") #Move up to avoid collision with the tool
         time.sleep(1.5) 
-        self.printer.send_gcode_command(f"G0 X{x} Y{y} F6000")
+        self.printer.send_gcode_command(f"G0 X{x} Y{y} Z{z}F6000")
         time.sleep(1.5)  # Wait for movement to complete
         
         # Create window for camera view
         cv2.namedWindow('Target Detection')
         
-        # Movement step size
+        # Constants for automatic centering
+        TOLERANCE = 2  # Pixels from center considered "centered"
+        INITIAL_PIXELS_TO_MM = 0.015  # Initial conversion factor
+        MAX_ITERATIONS = 20  # Maximum number of centering attempts
+        
+        # Movement step size for manual control
         STEP_SIZE = 0.25
+        
+        # Get image dimensions and calculate center
+        frame = self.camera_upper.capture_frame()
+        if frame is None:
+            raise RuntimeError("Could not capture initial frame")
+        image_height, image_width = frame.shape[:2]
+        IMAGE_CENTER = (image_width // 2, image_height // 2)
+        
+        # Automatic centering mode
+        auto_center = False
+        iteration = 0
+        pixels_to_mm = INITIAL_PIXELS_TO_MM
         
         while True:
             # Capture frame
@@ -81,8 +100,17 @@ class PnPTesting:
             cv2.rectangle(frame, top_left, bottom_right, (0, 255, 0), 2)
             cv2.circle(frame, center, 5, (0, 255, 0), -1)
             
+            # Draw image center crosshair
+            cv2.line(frame, (IMAGE_CENTER[0]-20, IMAGE_CENTER[1]), (IMAGE_CENTER[0]+20, IMAGE_CENTER[1]), (0, 0, 255), 2)
+            cv2.line(frame, (IMAGE_CENTER[0], IMAGE_CENTER[1]-20), (IMAGE_CENTER[0], IMAGE_CENTER[1]+20), (0, 0, 255), 2)
+            
             # Add match quality text
             cv2.putText(frame, f"Match: {max_val:.2f}", (10, 30),
+                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            
+            # Add mode text
+            mode_text = "Auto-Centering" if auto_center else "Manual Control"
+            cv2.putText(frame, f"Mode: {mode_text}", (10, 60),
                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             
             # Show frame
@@ -93,20 +121,110 @@ class PnPTesting:
             
             if key == ord('q'):
                 break
-            elif key == ord('w'):  # Move +Y
-                self.printer.send_gcode_command(f"G91 G0 Y{STEP_SIZE} F1200 G90")
-            elif key == ord('s'):  # Move -Y
-                self.printer.send_gcode_command(f"G91 G0 Y-{STEP_SIZE} F1200 G90")
-            elif key == ord('a'):  # Move -X
-                self.printer.send_gcode_command(f"G91 G0 X-{STEP_SIZE} F1200 G90")
-            elif key == ord('d'):  # Move +X
-                self.printer.send_gcode_command(f"G91 G0 X{STEP_SIZE} F1200 G90")
-            elif key == ord('r'):  # Move +Z
-                self.printer.send_gcode_command(f"G91 G0 Z{STEP_SIZE} F1200 G90")
-            elif key == ord('f'):  # Move -Z
-                self.printer.send_gcode_command(f"G91 G0 Z-{STEP_SIZE} F1200 G90")
+            elif key == ord('c'):  # Toggle auto-centering
+                auto_center = not auto_center
+                iteration = 0
+                print(f"Switched to {'auto-centering' if auto_center else 'manual'} mode")
+            elif not auto_center:  # Manual control only when not auto-centering
+                if key == ord('w'):  # Move +Y
+                    self.printer.send_gcode_command(f"G91 G0 Y{STEP_SIZE} F1200 G90")
+                elif key == ord('s'):  # Move -Y
+                    self.printer.send_gcode_command(f"G91 G0 Y-{STEP_SIZE} F1200 G90")
+                elif key == ord('a'):  # Move -X
+                    self.printer.send_gcode_command(f"G91 G0 X-{STEP_SIZE} F1200 G90")
+                elif key == ord('d'):  # Move +X
+                    self.printer.send_gcode_command(f"G91 G0 X{STEP_SIZE} F1200 G90")
+                elif key == ord('r'):  # Move +Z
+                    self.printer.send_gcode_command(f"G91 G0 Z{STEP_SIZE} F1200 G90")
+                elif key == ord('f'):  # Move -Z
+                    self.printer.send_gcode_command(f"G91 G0 Z-{STEP_SIZE} F1200 G90")
+                time.sleep(0.01)  # Small delay to prevent too rapid movement
+            
+            # Auto-centering logic
+            if auto_center and max_val > 0.5:  # Only attempt centering if we have a good match
+                x_offset = IMAGE_CENTER[0] - center[0]
+                y_offset = IMAGE_CENTER[1] - center[1]
                 
-            time.sleep(0.01)     # Small delay to prevent too rapid movement
+                # Check if we're centered within tolerance
+                if abs(x_offset) <= TOLERANCE and abs(y_offset) <= TOLERANCE:
+                    print("Target successfully centered!")
+                    # Get current position and save it
+                    self.printer.send_gcode_command("M114")
+                    current_pos = self.printer.parse_position(self.printer.response)
+                    
+                    # Save target location to JSON file
+                    target_location = {
+                        'x': current_pos['X'],
+                        'y': current_pos['Y'],
+                        'z': current_pos['Z'],
+                        'template_path': template_path
+                    }
+                    
+                    try:
+                        # Get absolute path for the file
+                        file_path = os.path.abspath('target_location.json')
+                        print(f"Attempting to save to: {file_path}")
+                        
+                        # Check if directory is writable
+                        directory = os.path.dirname(file_path)
+                        if not os.access(directory, os.W_OK):
+                            print(f"Warning: No write permission in directory: {directory}")
+                        
+                        # Try to create/overwrite the file
+                        with open(file_path, 'w') as f:
+                            json.dump(target_location, f, indent=4)
+                            f.flush()  # Ensure data is written to disk
+                            os.fsync(f.fileno())  # Force system to write to disk
+                            
+                        # Verify the file was written
+                        if os.path.exists(file_path):
+                            print(f"Target location saved successfully to: {file_path}")
+                            print(f"Target location: X={current_pos['X']:.3f}, Y={current_pos['Y']:.3f}, Z={current_pos['Z']:.3f}")
+                        else:
+                            print("Error: File was not created")
+                            
+                    except PermissionError as e:
+                        print(f"Permission error saving target location: {str(e)}")
+                    except IOError as e:
+                        print(f"IO error saving target location: {str(e)}")
+                    except Exception as e:
+                        print(f"Unexpected error saving target location: {str(e)}")
+                        import traceback
+                        print("Full error traceback:")
+                        print(traceback.format_exc())
+                    
+                    auto_center = False
+                    continue
+                
+                if iteration >= MAX_ITERATIONS:
+                    print("Failed to center after maximum iterations")
+                    auto_center = False
+                    continue
+                
+                # Get current machine position
+                self.printer.send_gcode_command("M114")
+                current_pos = self.printer.parse_position(self.printer.response)
+                
+                # Calculate move distance using current conversion factor
+                x_move = -x_offset * pixels_to_mm
+                y_move = y_offset * pixels_to_mm
+                
+                # Calculate new position
+                new_x = current_pos['X'] + x_move
+                new_y = current_pos['Y'] + y_move
+                
+                # Print debug information
+                print(f"Current position: X={current_pos['X']:.3f}, Y={current_pos['Y']:.3f}")
+                print(f"Offsets: X={x_offset:.1f}, Y={y_offset:.1f} pixels")
+                print(f"Move distances: X={x_move:.3f}, Y={y_move:.3f} mm")
+                print(f"New position: X={new_x:.3f}, Y={new_y:.3f}")
+                
+                # Move to new position slowly
+                self.printer.send_gcode_command(f"G0 X{new_x:.3f} Y{new_y:.3f} F1200")
+                print(f"Centering iteration {iteration}: offset (pixels) = ({x_offset}, {y_offset})")
+                time.sleep(1.5)  # Wait for move to complete and camera image to update
+                
+                iteration += 1
             
         # Turn off upper camera ring light
         self.printer.send_gcode_command("M106 P3 S0")  # Turn off upper camera ring light
@@ -119,33 +237,54 @@ class PnPTesting:
     def pickup_and_verify(self) -> bool:
         """
         Pick up target using Tool 2 and verify with lower camera.
+        Uses saved target position from target_location.json and accounts for camera offsets.
         
         Returns:
             bool: True if pickup and verification successful
         """
+        # Load saved target position
+        try:
+            with open('target_location.json', 'r') as f:
+                target_location = json.load(f)
+            print(f"Loaded target location: X={target_location['x']:.3f}, Y={target_location['y']:.3f}, Z={target_location['z']:.3f}")
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Error loading target location: {str(e)}")
+            return False
+            
+        # Load camera offsets
+        try:
+            with open('camera_offset.json', 'r') as f:
+                camera_offset = json.load(f)
+            print(f"Loaded camera offset: X={camera_offset['X']:.3f}, Y={camera_offset['Y']:.3f}, Z={camera_offset['Z']:.3f}")
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Warning: Could not load camera offset: {str(e)}")
+            camera_offset = {'X': 0, 'Y': 0, 'Z': 0}
+            
         # Switch to picker tool (Tool 2)
         self.printer.send_gcode_command("T2")
-        
-        # Get current position
-        self.printer.send_gcode_command("M114")
-        current_pos = self.printer.parse_position(self.printer.response)
-        
-        # Apply camera offset to get picker position
-        picker_x = current_pos['X'] - self.camera_offset['X']
-        picker_y = current_pos['Y'] - self.camera_offset['Y']
-        picker_z = current_pos['Z'] - self.camera_offset['Z']
         
         # First move to safe Z height
         self.printer.send_gcode_command("G0 Z150 F6000")
         time.sleep(1.5)
         
         # Turn on vacuum before moving
-        self.printer.send_gcode_command("M106 P1 S255")  # Turn on vacuum pump (Fan 1)
+        self.printer.send_gcode_command("M106 P1 S102")  # Turn on vacuum pump (Fan 1)
         time.sleep(0.5)
-        self.printer.send_gcode_command("M106 P2 S255")  # Open solenoid valve (Fan 2)
 
-        # Move to picker position
-        self.printer.send_gcode_command(f"G0 X{picker_x} Y{picker_y} Z{picker_z} F15000")
+        # Calculate target position with camera offset
+        target_x = target_location['x'] - camera_offset['X']
+        target_y = target_location['y'] - camera_offset['Y']
+        target_z = target_location['z']
+        
+        print(f"Moving to adjusted target position: X={target_x:.3f}, Y={target_y:.3f}, Z={target_z:.3f}")
+
+        # Move to target position
+        self.printer.send_gcode_command(f"G0 X{target_x} Y{target_y} F6000")
+        self.printer.send_gcode_command(f"G0 Z10 F6000")
+        self.printer.send_gcode_command(f"G0 Z-7.6 F300")
+        time.sleep(2.5)
+        self.printer.send_gcode_command("M106 P2 S15")  # Open solenoid valve (Fan 2)
+
         time.sleep(3.5) #Long Delay for observation
         
         # Move up to safe height
@@ -286,8 +425,8 @@ if __name__ == "__main__":
     try:
         # Step 1: Find target with camera
         pnp_test.find_target_with_camera(
-            location=(21.6, -59.7, 166.41),  # Example camera position
-            template_path="template.png"  # Path to your template image
+            location=(-42.8, 238.1, 144.00),  # Example camera position
+            template_path="Resistor_G_Samp.png"  # Path to your template image
         )
         
         # Step 2: Pickup and verify
