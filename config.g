@@ -25,24 +25,28 @@ M569 P0.1 S0                                    ; Physical drive 1 goes backward
 M569 P0.2 S0                                    ; Physical drive 2 goes forwards
 M569 P0.3 S0                                    ; Physical drive 3 goes backwards
 M569 P0.4 S1                                    ; Physical drive 4 goes backwards
-M569 P0.5 S0                                    ; Physical drive 5 goes backwards
+M569 P0.5 S1                                    ; Physical drive 5 goes backwards
 M569 P1.0 S1                                    ; Physical drive 6 goes backwards
 M569 P1.1 S0                                    ; Physical drive 7 goes backwards
 M569 P1.2 S0                                    ; Physical drive 8 goes backwards
+M569 P2.0 S0                                    ; Physical Drive 9 goes backwards
+M569 P2.1 S0                                    ; Physical Drive 10 goes backwards
+
+
 
 ; Drive Mapping
 M584 X0.0 Y1.2 Z0.4:1.0 E1.1:0.5 U0.1 V0.3      ; Set drive mapping (Z left:right)
-M584 A0.2 S1 R1                                 ; Set A axis mapping
+M584 A0.2 B2.0 C2.1 S0 R0                                 ; Set A axis mapping A = rotary tool, B  =  Feeder, C = PnP Rot
 
 ; Microstepping and Steps Configuration
-M350 X32 Y32 Z16 E32:16 U16 V32 A16 I1         ; Configure microstepping with interpolation
-M92 X160.00 Y160.00 Z400.00 E260:30704 U80.00 V160.00 A8.88888  ; Set steps per mm/degree
+M350 X32 Y32 Z16 E32:16 U16 V32 A32 B32 C32 I1         ; Configure microstepping with interpolation
+M92 X160.00 Y160.00 Z400.00 E260:30704 U80.00 V160.00 A71.111111 B71.1111111 C17.77777   ; Set steps per mm/degree
 
 ; Speed and Acceleration Settings
-M566 X600.00 Y600.00 Z300.00 E300.00:600 U600 V600 A2000  ; Maximum instantaneous speed changes (mm/min)
-M203 X12000.00 Y12000.00 Z2400 E1500:35 U12000 V12000 A22000  ; Maximum speeds (mm/min)
-M201 X500.00 Y500.00 Z350.00 E200.00:500.00 U600.0 V600 A15000  ; Accelerations (mm/s^2)
-M906 X1600 Y1600 Z1200 E1600:800 U1600 V1600 A600 I30  ; Motor currents (mA) and idle factor
+M566 X600.00 Y600.00 Z300.00 E300.00:600 U600 V600 A900 B900 C900 ; Maximum instantaneous speed changes (mm/min)
+M203 X12000.00 Y12000.00 Z2400 E1500:35 U12000 V12000 A12000  B12000 C12000 ; Maximum speeds (mm/min)
+M201 X500.00 Y500.00 Z350.00 E200.00:500.00 U600.0 V600 A9000 B9000 C9000 ; Accelerations (mm/s^2)
+M906 X1600 Y1600 Z1200 E1600:800 U1600 V1600 A400 B400 C400 I30  ; Motor currents (mA) and idle factor
 M84 S30                                         ; Set idle timeout
 
 ;==========================================
@@ -120,12 +124,11 @@ G10 P1 X0.000 Y-71.175 Z-10.400 U-164.595 V0.000 A0.000  ; Set tool 1 offsets
 ; Tool 2 (PnP Head, Center)
 M563 P2 X4                                     ; Define tool 2
 G10 P2 Z-14.35 V-10.55 Y-74.3                  ; Set tool 2 offsets
-G92 A0                                         ; Set V axis to homed at zero
+G92 A0 B0 C0                                        ; Set V axis to homed at zero
 
 ; Tool 3 (PnP Camera Head)
 M563 P3 X4                                     ; Define tool 3
-G10 P2 Z-14.35 V-14 Y-88                       ; Set tool 3 offsets
-
+G10 P3 V-3.82 Y-114.660 Z26
 ;==========================================
 ; Final Configuration
 ;==========================================
