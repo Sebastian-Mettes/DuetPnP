@@ -16,6 +16,12 @@ class PnPTesting:
         self.camera_lower = VisionTools(0)  # Upward Facing Camera
         self.load_camera_offset()
         
+        # Target object to store rotation and offset data
+        self.target = {
+            'rotation': 0.0,
+            'offset': {'X': 0.0, 'Y': 0.0, 'Z': 0.0}
+        }
+        
     def load_camera_offset(self) -> None:
         """Load camera offset from calibration file."""
         try:
@@ -332,7 +338,8 @@ class PnPTesting:
                 
     def determine_rotation(self, template_path: str) -> None:
         """
-        Determine rotation of picked up object using template matching.
+        Determine rotation and offset of picked up object using template matching.
+        Includes automatic centering functionality.
         
         Args:
             template_path: Path to template image file
@@ -345,9 +352,31 @@ class PnPTesting:
         # Turn on lower camera ring light
         self.printer.send_gcode_command("M106 P4 S255")  # Turn on lower camera ring light (Fan 4)
         time.sleep(0.5)
+        
+        # Move to camera location for centering
+        camera_pos = self.printer.camera_location
+        self.printer.send_gcode_command(f"G0 X{camera_pos[0]} Y{camera_pos[1]} Z{camera_pos[2]} F6000")
+        time.sleep(1.5)
             
         # Create window for rotation detection
         cv2.namedWindow('Rotation Detection')
+        
+        # Constants for automatic centering
+        TOLERANCE = 2  # Pixels from center considered "centered"
+        INITIAL_PIXELS_TO_MM = 0.015  # Initial conversion factor
+        MAX_ITERATIONS = 20  # Maximum number of centering attempts
+        
+        # Get image dimensions and calculate center
+        frame = self.camera_lower.capture_frame()
+        if frame is None:
+            raise RuntimeError("Could not capture initial frame")
+        image_height, image_width = frame.shape[:2]
+        IMAGE_CENTER = (image_width // 2, image_height // 2)
+        
+        # Automatic centering mode
+        auto_center = True
+        iteration = 0
+        pixels_to_mm = INITIAL_PIXELS_TO_MM
         
         while True:
             # Capture frame from lower camera
@@ -363,7 +392,7 @@ class PnPTesting:
             best_angle = 0
             
             # Try different rotations
-            for angle in range(0, 360, 5):  # 5-degree steps
+            for angle in range(-90, 90, 5):  # 5-degree steps
                 # Rotate template
                 matrix = cv2.getRotationMatrix2D(
                     (template.shape[1]/2, template.shape[0]/2), 
@@ -394,10 +423,19 @@ class PnPTesting:
                 cv2.rectangle(frame, top_left, bottom_right, (0, 255, 0), 2)
                 cv2.circle(frame, center, 5, (0, 255, 0), -1)
                 
+                # Draw image center crosshair
+                cv2.line(frame, (IMAGE_CENTER[0]-20, IMAGE_CENTER[1]), (IMAGE_CENTER[0]+20, IMAGE_CENTER[1]), (0, 0, 255), 2)
+                cv2.line(frame, (IMAGE_CENTER[0], IMAGE_CENTER[1]-20), (IMAGE_CENTER[0], IMAGE_CENTER[1]+20), (0, 0, 255), 2)
+                
                 # Add angle and match quality text
                 cv2.putText(frame, f"Angle: {best_angle}°", (10, 30),
                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 cv2.putText(frame, f"Match: {best_score:.2f}", (10, 60),
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                
+                # Add mode text
+                mode_text = "Auto-Centering" if auto_center else "Manual Control"
+                cv2.putText(frame, f"Mode: {mode_text}", (10, 90),
                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             
             # Show frame
@@ -407,6 +445,83 @@ class PnPTesting:
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
                 break
+            elif key == ord('c'):  # Toggle auto-centering
+                auto_center = not auto_center
+                iteration = 0
+                print(f"Switched to {'auto-centering' if auto_center else 'manual'} mode")
+            
+            # Auto-centering logic
+            if auto_center and best_match is not None and best_score > 0.5:  # Only attempt centering if we have a good match
+                x_offset = IMAGE_CENTER[0] - center[0]
+                y_offset = IMAGE_CENTER[1] - center[1]
+                
+                # Check if we're centered within tolerance
+                if abs(x_offset) <= TOLERANCE and abs(y_offset) <= TOLERANCE:
+                    print("Target successfully centered!")
+                    
+                    # Get current tool position
+                    self.printer.send_gcode_command("M114")
+                    current_pos = self.printer.parse_position(self.printer.response)
+                    
+                    # Calculate offset from camera location
+                    self.target['offset'] = {
+                        'X': current_pos['X'] - camera_pos[0],
+                        'Y': current_pos['Y'] - camera_pos[1],
+                        'Z': current_pos['Z'] - camera_pos[2]
+                    }
+                    
+                    # Store rotation
+                    self.target['rotation'] = best_angle
+                    
+                    print(f"Target rotation: {self.target['rotation']}°")
+                    print(f"Target offset: X={self.target['offset']['X']:.3f}, Y={self.target['offset']['Y']:.3f}, Z={self.target['offset']['Z']:.3f}")
+                    
+                    # Save target data to JSON file
+                    target_data = {
+                        'rotation': self.target['rotation'],
+                        'offset': self.target['offset'],
+                        'template_path': template_path
+                    }
+                    
+                    try:
+                        with open('target_data.json', 'w') as f:
+                            json.dump(target_data, f, indent=4)
+                        print("Target data saved to target_data.json")
+                    except Exception as e:
+                        print(f"Error saving target data: {str(e)}")
+                    
+                    auto_center = False
+                    continue
+                
+                if iteration >= MAX_ITERATIONS:
+                    print("Failed to center after maximum iterations")
+                    auto_center = False
+                    continue
+                
+                # Get current machine position
+                self.printer.send_gcode_command("M114")
+                current_pos = self.printer.parse_position(self.printer.response)
+                
+                # Calculate move distance using current conversion factor
+                x_move = -x_offset * pixels_to_mm
+                y_move = y_offset * pixels_to_mm
+                
+                # Calculate new position
+                new_x = current_pos['X'] + x_move
+                new_y = current_pos['Y'] + y_move
+                
+                # Print debug information
+                print(f"Current position: X={current_pos['X']:.3f}, Y={current_pos['Y']:.3f}")
+                print(f"Offsets: X={x_offset:.1f}, Y={y_offset:.1f} pixels")
+                print(f"Move distances: X={x_move:.3f}, Y={y_move:.3f} mm")
+                print(f"New position: X={new_x:.3f}, Y={new_y:.3f}")
+                
+                # Move to new position slowly
+                self.printer.send_gcode_command(f"G0 X{new_x:.3f} Y{new_y:.3f} F1200")
+                print(f"Centering iteration {iteration}: offset (pixels) = ({x_offset}, {y_offset})")
+                time.sleep(1.5)  # Wait for move to complete and camera image to update
+                
+                iteration += 1
                 
         # Turn off lower camera ring light
         self.printer.send_gcode_command("M106 P4 S0")  # Turn off lower camera ring light
@@ -425,13 +540,13 @@ if __name__ == "__main__":
     try:
         # Step 1: Find target with camera
         pnp_test.find_target_with_camera(
-            location=(-42.8, 238.1, 144.00),  # Example camera position
+            location=(-42.8, 238.1, 144.00),  # Example target position
             template_path="Resistor_G_Samp.png"  # Path to your template image
         )
         
         # Step 2: Pickup and verify
         if pnp_test.pickup_and_verify():
             # Step 3: Determine rotation
-            pnp_test.determine_rotation(template_path="template.png")
+            pnp_test.determine_rotation(template_path="Resistor_Rotation_Template.png")
     finally:
         pnp_test.cleanup()
