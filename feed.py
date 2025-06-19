@@ -67,22 +67,40 @@ class Feeder:
         Feed material at the specified belt position.
         
         Args:
-            belt (int): Belt number to feed from (0-N from left)
+            belt (int): Belt number to feed from (0-N from left), or relative move (1,2) if not homed
             
         Raises:
             ValueError: If belt number is invalid
         """
         if not isinstance(belt, int):
             raise TypeError("belt must be an integer")
-        if not 0 <= belt < self.num_belts:
-            raise ValueError(f"belt must be between 0 and {self.num_belts-1}")
             
         cal = calibration.CalibrateToolheads()
         
         # Calculate rotation needed based on current and target belt positions
         if self.belt is None:
-            print("Warning: Feeder has not been homed - feeding at current position")
+            # Not homed - treat belt as relative move indicator
+            if belt == 1:
+                rotation = -120
+                print("Performing relative move: -120°")
+            elif belt == 2:
+                rotation = -240
+                print("Performing relative move: -240°")
+            elif 0 <= belt < self.num_belts:
+                # Valid belt number, but not homed - feed at current position
+                print("Warning: Feeder has not been homed - feeding at current position")
+                rotation = 0
+            else:
+                raise ValueError(f"belt must be between 0 and {self.num_belts-1}, or 1/2 for relative moves when not homed")
+            
+            # Execute rotation if needed
+            if rotation != 0:
+                cal.send_gcode_command(f"G1 B{rotation} F900")
         else:
+            # Homed - normal belt-based movement
+            if not 0 <= belt < self.num_belts:
+                raise ValueError(f"belt must be between 0 and {self.num_belts-1}")
+                
             belt_diff = abs(belt - self.belt)
             
             # Determine rotation needed (-120° per position)
@@ -106,5 +124,39 @@ class Feeder:
         cal.send_gcode_command(f"G1 B-{theta} F1200")  # Back up quickly
         cal.send_gcode_command(f"G1 B{theta} F600")    # Feed forward slowly
 
+        cal.close()
 
 
+if __name__ == "__main__":
+    import sys
+    feeder = Feeder()
+
+    if len(sys.argv) == 1:
+        # No arguments - feed from current position
+        feeder.feed(feeder.belt if feeder.belt is not None else 0)
+    elif len(sys.argv) == 2:
+        if sys.argv[1].lower() == "home":
+            feeder.home()
+            # After homing, ask user which belt they want to feed
+            print(f"\nHoming complete. Which belt would you like to feed? (0-{feeder.num_belts-1})")
+            while True:
+                try:
+                    belt_input = input("Enter belt number: ")
+                    belt_num = int(belt_input)
+                    if 0 <= belt_num < feeder.num_belts:
+                        feeder.feed(belt_num)
+                        break
+                    else:
+                        print(f"Invalid belt number. Must be between 0 and {feeder.num_belts-1}")
+                except ValueError:
+                    print("Invalid input. Please enter a valid belt number.")
+        else:
+            try:
+                belt_num = int(sys.argv[1])
+                feeder.feed(belt_num)
+            except ValueError:
+                print("Error: Argument must be an integer belt number or 'home'")
+                sys.exit(1)
+    else:
+        print("Usage: python feed.py [belt_number|home]")
+        sys.exit(1)
