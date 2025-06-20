@@ -382,6 +382,7 @@ class CalibrateToolheads:
             raise ValueError(f"Invalid camera number: {camera}. Must be 0 (lower) or 2 (upper)")
             
         self.send_gcode_command(f"G0 X{self.camera_location[0]} Y{self.camera_location[1]} Z{self.camera_location[2]} F6000", check=False)
+        print(f"G0 X{self.camera_location[0]} Y{self.camera_location[1]} Z{self.camera_location[2]} F6000")
         time.sleep(1.5)
 
         # Initialize vision tools
