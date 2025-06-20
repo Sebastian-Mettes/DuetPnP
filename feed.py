@@ -1,7 +1,7 @@
 import calibration
 import time
 class Feeder:
-    def __init__(self, num_belts = 3, radius = 22.5, control_axis = 'B'):
+    def __init__(self, num_belts = 3, radius = 11.45, control_axis = 'B'):
         self.radius = radius
         self.num_belts = num_belts
         self.belt = None
@@ -38,7 +38,7 @@ class Feeder:
                 theta = (6/self.radius) * (180/3.14159)
                 
                 # Back up by theta degrees while key is held
-                cal.send_gcode_command(f"G1 B-{theta} F1200")
+                cal.send_gcode_command(f"G1 B-{theta} F60000")
                 
                 # Move forward again by theta degrees
                 cal.send_gcode_command(f"G1 B{theta} F600")
@@ -118,7 +118,7 @@ class Feeder:
         theta = (6/self.radius) * (180/3.14159)
         
         # Rock back then push forward to feed
-        cal.send_gcode_command(f"G1 B-{theta} F1200")  # Back up quickly
+        cal.send_gcode_command(f"G1 B-{theta} F60000")  # Back up quickly
         time.sleep(1)
         cal.send_gcode_command(f"G1 B{theta} F600")    # Feed forward slowly
 
