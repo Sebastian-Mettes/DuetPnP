@@ -2,6 +2,9 @@ import calibration
 
 class Feeder:
     def __init__(self, num_belts = 3, radius = 22.5, control_axis = 'B'):
+        self.radius = radius
+        self.num_belts = num_belts
+        self.belt = None
         if not isinstance(self.num_belts, int):
             raise TypeError("num_belts must be an integer")
         if self.num_belts < 1:
@@ -11,9 +14,7 @@ class Feeder:
             raise TypeError("radius must be a number")
         if self.radius <= 0:
             raise ValueError("radius must be greater than 0")
-        self.radius = radius
-        self.num_belts = num_belts
-        self.belt = None
+        
     
     def home(self):
         """
