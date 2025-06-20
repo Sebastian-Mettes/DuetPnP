@@ -25,6 +25,7 @@ class Feeder:
         
         # Slowly rotate until stall
         print("Rotating feeder until stall...")
+        cal.send_gcode_command("G91")
         cal.send_gcode_command("G1 B120 F900")  # Rotate B axis 120 degrees at 900mm/min
         
         print("\nPress 'c' to test feed at current position")
@@ -36,7 +37,7 @@ class Feeder:
             if key == 'c':
                 # Calculate theta in degrees (converting from radians)
                 theta = (6/self.radius) * (180/3.14159)
-                
+                cal.send_gcode_command("G91")
                 # Back up by theta degrees while key is held
                 cal.send_gcode_command(f"G1 B-{theta} F60000")
                 
@@ -91,6 +92,7 @@ class Feeder:
             
             # Execute rotation if needed
             if rotation != 0:
+                cal.send_gcode_command("G91")
                 cal.send_gcode_command(f"G1 B{rotation} F900")
         else:
             # Homed - normal belt-based movement
@@ -110,6 +112,7 @@ class Feeder:
                 
             if belt_diff != 0:
                 # Execute rotation
+                cal.send_gcode_command("G91")
                 cal.send_gcode_command(f"G1 B{rotation} F900")
                 time.sleep(4)
                 self.belt = belt
@@ -118,6 +121,7 @@ class Feeder:
         theta = (6/self.radius) * (180/3.14159)
         print("Degrees to feed forward: ",theta)
         # Rock back then push forward to feed
+        cal.send_gcode_command("G91")
         cal.send_gcode_command(f"G1 B-{theta} F60000")  # Back up quickly
         time.sleep(1)
         cal.send_gcode_command(f"G1 B{theta} F600")    # Feed forward slowly
