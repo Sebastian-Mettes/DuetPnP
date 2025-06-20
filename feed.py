@@ -1,5 +1,5 @@
 import calibration
-
+import time
 class Feeder:
     def __init__(self, num_belts = 3, radius = 22.5, control_axis = 'B'):
         self.radius = radius
@@ -111,6 +111,7 @@ class Feeder:
             if belt_diff != 0:
                 # Execute rotation
                 cal.send_gcode_command(f"G1 B{rotation} F900")
+                time.sleep(4)
                 self.belt = belt
             
         # Calculate feed distance in degrees
@@ -118,6 +119,7 @@ class Feeder:
         
         # Rock back then push forward to feed
         cal.send_gcode_command(f"G1 B-{theta} F1200")  # Back up quickly
+        time.sleep(1)
         cal.send_gcode_command(f"G1 B{theta} F600")    # Feed forward slowly
 
         cal.close()
