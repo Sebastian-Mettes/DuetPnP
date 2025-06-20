@@ -1,12 +1,7 @@
 import calibration
 
-
-
-
-
-
 class Feeder:
-    def __init__(self, num_belts = 3, radius = 10, control_axis = 'B'):
+    def __init__(self, num_belts = 3, radius = 22.5, control_axis = 'B'):
         if not isinstance(self.num_belts, int):
             raise TypeError("num_belts must be an integer")
         if self.num_belts < 1:
