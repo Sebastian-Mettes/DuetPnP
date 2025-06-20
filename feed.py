@@ -116,7 +116,7 @@ class Feeder:
             
         # Calculate feed distance in degrees
         theta = (6/self.radius) * (180/3.14159)
-        
+        print("Degrees to feed forward: ",theta)
         # Rock back then push forward to feed
         cal.send_gcode_command(f"G1 B-{theta} F60000")  # Back up quickly
         time.sleep(1)
@@ -131,7 +131,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) == 1:
         # No arguments - feed from current position
-        feeder.feed(feeder.belt if feeder.belt is not None else 0)
+        feeder.feed(0)
     elif len(sys.argv) == 2:
         if sys.argv[1].lower() == "home":
             feeder.home()
