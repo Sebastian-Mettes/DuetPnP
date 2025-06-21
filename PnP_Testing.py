@@ -533,6 +533,11 @@ class PnPTesting:
         self.printer.close()
         self.camera_upper.cleanup()
         self.camera_lower.cleanup()
+        self.printer.send_gcode_command("M106 P1 S0")  # Turn off vacuum pump
+        self.printer.send_gcode_command("M106 P2 S0")  # Turn off solenoid valve
+        self.printer.send_gcode_command("M106 P3 S0")  # Turn off upper LED ring
+        self.printer.send_gcode_command("M106 P4 S0")  # Turn off lower LED ring
+        time.sleep(0.5)  # Wait for outputs to update
 
 if __name__ == "__main__":
     # Example usage
@@ -540,7 +545,7 @@ if __name__ == "__main__":
     try:
         # Step 1: Find target with camera
         pnp_test.find_target_with_camera(
-            location=(-42.8, 238.1, 144.00),  # Example target position
+            location=(-42.8, 200.1, 144.00),  # Example target position
             template_path="Resistor_G_Samp.png"  # Path to your template image
         )
         
