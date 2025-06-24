@@ -5,6 +5,7 @@ from typing import Dict, List, Tuple, Optional
 from dataCollection import DataCollection
 from calibration import CalibrateToolheads
 from vision_tools import VisionTools
+from feed import Feeder
 import time
 
 class PnPLayer:
@@ -19,8 +20,12 @@ class PnPLayer:
         self.printer = CalibrateToolheads()
         self.camera_lower = VisionTools(0)  # Upward Facing Camera
         self.camera_upper = VisionTools(2)  # Downward Facing Camera
+        self.feeder = Feeder()  # Initialize feeder system
         self.load_config(config_file)
         self.load_camera_offset()
+        
+        # Home the feeder system
+        self.home_feeder()
         
         if calibrate_tool:
             self.calibrate_tools()
@@ -34,7 +39,9 @@ class PnPLayer:
             "components": [
                 {
                     "type": "component_name",
-                    "template_image": "path/to/template.jpg",
+                    "upper_template": "path/to/upper_template.jpg",
+                    "lower_template": "path/to/lower_template.jpg",
+                    "feed_number": 0,
                     "reel_location": {"x": 0, "y": 0, "z": 0},
                     "placements": [
                         {
@@ -47,20 +54,29 @@ class PnPLayer:
                 }
             ],
             "tool_number": 0,
-            "vacuum_pin": "fan0"
+            "vacuum_pin": "fan0",
+            "solenoid_pin": "fan1"
         }
         """
         try:
             with open(config_file, 'r') as f:
                 self.config = json.load(f)
                 
-            # Load template images for each component type
-            self.templates = {}
+            # Load template images for each component type (upper and lower camera)
+            self.upper_templates = {}
+            self.lower_templates = {}
             for component in self.config['components']:
-                template = cv2.imread(component['template_image'], cv2.IMREAD_GRAYSCALE)
-                if template is None:
-                    raise ValueError(f"Could not load template image: {component['template_image']}")
-                self.templates[component['type']] = template
+                # Load upper camera template (for component identification)
+                upper_template = cv2.imread(component['upper_template'], cv2.IMREAD_GRAYSCALE)
+                if upper_template is None:
+                    raise ValueError(f"Could not load upper template image: {component['upper_template']}")
+                self.upper_templates[component['type']] = upper_template
+                
+                # Load lower camera template (for alignment and orientation)
+                lower_template = cv2.imread(component['lower_template'], cv2.IMREAD_GRAYSCALE)
+                if lower_template is None:
+                    raise ValueError(f"Could not load lower template image: {component['lower_template']}")
+                self.lower_templates[component['type']] = lower_template
                 
         except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
             raise ValueError(f"Error loading configuration: {str(e)}")
@@ -83,14 +99,18 @@ class PnPLayer:
         print("Tool calibration complete!")
         
     def match_template(self, image: np.ndarray, template: np.ndarray, 
-                      threshold: float = 0.8) -> Optional[Tuple[float, float, float]]:
+                      threshold: float = 0.5, auto_center: bool = True,
+                      camera_type: str = "upper") -> Optional[Tuple[float, float, float]]:
         """
         Match template in image and return position and rotation.
+        Includes automatic centering functionality and visual feedback.
         
         Args:
             image: Grayscale image to search in
             template: Template image to match
             threshold: Minimum match quality (0-1)
+            auto_center: Whether to automatically center the target
+            camera_type: "upper" or "lower" camera for movement calculations
             
         Returns:
             Tuple of (x, y, rotation_degrees) or None if no match found
@@ -100,39 +120,148 @@ class PnPLayer:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         if len(template.shape) > 2:
             template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
-            
-        best_match = None
-        best_score = -1
-        best_angle = 0
         
-        # Try different rotations
-        for angle in range(0, 360, 5):  # 5-degree steps
-            # Rotate template
-            matrix = cv2.getRotationMatrix2D(
-                (template.shape[1]/2, template.shape[0]/2), 
-                angle, 1.0
-            )
-            rotated = cv2.warpAffine(
-                template, matrix, 
-                (template.shape[1], template.shape[0])
-            )
+        # Get image dimensions and calculate center
+        image_height, image_width = image.shape[:2]
+        IMAGE_CENTER = (image_width // 2, image_height // 2)
+        
+        # Constants for automatic centering
+        TOLERANCE = 2  # Pixels from center considered "centered"
+        INITIAL_PIXELS_TO_MM = 0.015  # Initial conversion factor
+        MAX_ITERATIONS = 20  # Maximum number of centering attempts
+        
+        # Create window for visual feedback
+        window_name = f'Template Matching - {camera_type.capitalize()} Camera'
+        cv2.namedWindow(window_name)
+        
+        iteration = 0
+        pixels_to_mm = INITIAL_PIXELS_TO_MM
+        
+        while iteration < MAX_ITERATIONS:
+            # Template matching with rotation
+            best_match = None
+            best_score = -1
+            best_angle = 0
             
-            # Template matching
-            result = cv2.matchTemplate(image, rotated, cv2.TM_CCOEFF_NORMED)
-            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-            
-            if max_val > best_score:
-                best_score = max_val
-                best_match = max_loc
-                best_angle = angle
+            # Try different rotations
+            for angle in range(-180, 180, 5):  # 5-degree steps
+                # Rotate template
+                matrix = cv2.getRotationMatrix2D(
+                    (template.shape[1]/2, template.shape[0]/2), 
+                    angle, 1.0
+                )
+                rotated = cv2.warpAffine(
+                    template, matrix, 
+                    (template.shape[1], template.shape[0])
+                )
                 
-        if best_score < threshold:
-            return None
+                # Template matching
+                result = cv2.matchTemplate(image, rotated, cv2.TM_CCOEFF_NORMED)
+                min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+                
+                if max_val > best_score:
+                    best_score = max_val
+                    best_match = max_loc
+                    best_angle = angle
             
-        # Convert to center coordinates
-        center_x = best_match[0] + template.shape[1]/2
-        center_y = best_match[1] + template.shape[0]/2
+            if best_score < threshold:
+                print(f"Template match score too low: {best_score}")
+                cv2.destroyWindow(window_name)
+                return None
+            
+            # Convert to center coordinates
+            center_x = best_match[0] + template.shape[1]/2
+            center_y = best_match[1] + template.shape[0]/2
+            
+            # Create visual feedback image
+            display_image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR) if len(image.shape) == 2 else image.copy()
+            
+            # Draw crosshairs at image center
+            cv2.line(display_image, (IMAGE_CENTER[0]-20, IMAGE_CENTER[1]), (IMAGE_CENTER[0]+20, IMAGE_CENTER[1]), (0, 0, 255), 2)
+            cv2.line(display_image, (IMAGE_CENTER[0], IMAGE_CENTER[1]-20), (IMAGE_CENTER[0], IMAGE_CENTER[1]+20), (0, 0, 255), 2)
+            
+            # Draw target outline and center
+            h, w = template.shape
+            top_left = best_match
+            bottom_right = (top_left[0] + w, top_left[1] + h)
+            center = (int(center_x), int(center_y))
+            
+            # Draw rectangle around detected target
+            cv2.rectangle(display_image, top_left, bottom_right, (0, 255, 0), 2)
+            cv2.circle(display_image, center, 5, (0, 255, 0), -1)
+            
+            # Draw line from target center to image center
+            cv2.line(display_image, center, IMAGE_CENTER, (255, 0, 0), 2)
+            
+            # Add text information
+            cv2.putText(display_image, f"Match: {best_score:.2f}", (10, 30),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            cv2.putText(display_image, f"Angle: {best_angle}°", (10, 60),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            cv2.putText(display_image, f"Center: ({center_x:.1f}, {center_y:.1f})", (10, 90),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            
+            # Show frame
+            cv2.imshow(window_name, display_image)
+            
+            # Check if we're centered within tolerance
+            x_offset = IMAGE_CENTER[0] - center_x
+            y_offset = IMAGE_CENTER[1] - center_y
+            
+            if abs(x_offset) <= TOLERANCE and abs(y_offset) <= TOLERANCE:
+                print(f"Target successfully centered! Score: {best_score:.3f}, Angle: {best_angle}°")
+                cv2.destroyWindow(window_name)
+                return (center_x, center_y, best_angle)
+            
+            # Auto-centering logic
+            if auto_center and iteration < MAX_ITERATIONS - 1:
+                # Get current machine position
+                self.printer.send_gcode_command("M114", check=False)
+                current_pos = self.printer.parse_position(self.printer.response)
+                
+                # Calculate move distance using current conversion factor
+                x_move = -y_offset * pixels_to_mm
+                y_move = x_offset * pixels_to_mm
+                
+                # Calculate new position
+                new_x = current_pos['X'] + x_move
+                new_y = current_pos['Y'] + y_move
+                
+                # Move to new position slowly
+                self.printer.send_gcode_command(f"G0 X{new_x:.3f} Y{new_y:.3f} F1200", check=False)
+                print(f"Centering iteration {iteration + 1}: offset (pixels) = ({x_offset:.1f}, {y_offset:.1f}), move (mm) = ({x_move:.3f}, {y_move:.3f})")
+                time.sleep(1.5)  # Wait for move to complete and camera image to update
+                
+                # Update image for next iteration
+                if camera_type == "upper":
+                    image = self.camera_upper.capture_frame()
+                else:
+                    image = self.camera_lower.capture_frame()
+                
+                if image is None:
+                    print("Could not capture updated frame")
+                    cv2.destroyWindow(window_name)
+                    return None
+                
+                # Convert to grayscale if needed
+                if len(image.shape) > 2:
+                    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            else:
+                # Manual mode or max iterations reached
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord('q'):
+                    print("Template matching cancelled by user")
+                    cv2.destroyWindow(window_name)
+                    return None
+                elif key == ord('c'):
+                    print("Continuing without centering")
+                    cv2.destroyWindow(window_name)
+                    return (center_x, center_y, best_angle)
+            
+            iteration += 1
         
+        print("Failed to center target after maximum iterations")
+        cv2.destroyWindow(window_name)
         return (center_x, center_y, best_angle)
         
     def control_vacuum(self, state: bool) -> None:
@@ -143,9 +272,21 @@ class PnPLayer:
             state: True to turn on vacuum, False to turn off
         """
         if state:
-            self.printer.send_gcode_command(f"M106 P{self.config['vacuum_pin']} S255")
+            self.printer.send_gcode_command(f"M106 P{self.config['vacuum_pin']} S40")
         else:
             self.printer.send_gcode_command(f"M106 P{self.config['vacuum_pin']} S0")
+            
+    def control_solenoid(self, state: bool) -> None:
+        """
+        Control solenoid valve for picking/placing components.
+        
+        Args:
+            state: True to open solenoid, False to close solenoid
+        """
+        if state:
+            self.printer.send_gcode_command(f"M106 P{self.config['solenoid_pin']} S2")
+        else:
+            self.printer.send_gcode_command(f"M106 P{self.config['solenoid_pin']} S0")
             
     def check_component_alignment(self) -> Optional[Tuple[float, float, float]]:
         """
@@ -162,7 +303,8 @@ class PnPLayer:
         # Try to match current component template
         result = self.match_template(
             frame, 
-            self.templates[self.current_component['type']]
+            self.lower_templates[self.current_component['type']],
+            camera_type="lower"
         )
         
         if result is None:
@@ -179,28 +321,63 @@ class PnPLayer:
     def find_component_on_reel(self) -> Optional[Tuple[float, float, float]]:
         """
         Find component on reel using upper camera.
+        First moves camera to the reel_location specified in config, then looks for component.
         
         Returns:
             Tuple of (x, y, rotation) or None if component not found
         """
+        # Get reel location from config
+        if 'reel_location' not in self.current_component:
+            raise ValueError(f"Component '{self.current_component['type']}' is missing required 'reel_location' in configuration")
+        
+        reel_location = self.current_component['reel_location']
+        reel_x = reel_location['x']
+        reel_y = reel_location['y']
+        reel_z = reel_location.get('z', 150)  # Default to safe Z height if not specified
+        
+        print(f"Moving camera to reel location: X={reel_x}, Y={reel_y}, Z={reel_z}")
+        
+        # Move camera to reel location
+        self.printer.send_gcode_command("T3")  # Select upper camera tool
+        self.printer.send_gcode_command("M106 P3 S255")  # Turn on upper camera LED
+        time.sleep(0.5)
+        
+        # Move to safe height first, then to reel location
+        self.printer.send_gcode_command("G0 Z150 F6000")
+        time.sleep(1.0)
+        self.printer.send_gcode_command(f"G0 X{reel_x} Y{reel_y} F6000")
+        time.sleep(1.0)
+        self.printer.send_gcode_command(f"G0 Z{reel_z} F6000")
+        time.sleep(1.5)  # Wait for movement to complete and camera image to stabilize
+        
         # Capture image from upper camera
         frame = self.camera_upper.capture_frame()
         if frame is None:
+            print("Could not capture frame from upper camera")
+            self.printer.send_gcode_command("M106 P3 S0")  # Turn off LED
             return None
             
         # Try to match current component template
         result = self.match_template(
             frame, 
-            self.templates[self.current_component['type']]
+            self.upper_templates[self.current_component['type']],
+            camera_type="upper"
         )
         
         if result is None:
+            print("Could not find component in camera view")
+            self.printer.send_gcode_command("M106 P3 S0")  # Turn off LED
             return None
             
         # Convert pixel coordinates to machine coordinates and apply camera offset
         x = result[0] + self.camera_offset['X']
         y = result[1] + self.camera_offset['Y']
         rotation = result[2]
+        
+        print(f"Found component at machine coordinates: X={x:.3f}, Y={y:.3f}, rotation={rotation:.1f}°")
+        
+        # Turn off LED
+        self.printer.send_gcode_command("M106 P3 S0")
         
         return (x, y, rotation)
         
@@ -212,21 +389,21 @@ class PnPLayer:
         self.printer.send_gcode_command("T3")  # Select upper camera tool
         self.printer.send_gcode_command("G0 Z150 F6000")  # Move to safe height
         
-        # Track number of components placed for each type
-        component_counts = {}
-        
         for component in self.config['components']:
             self.current_component = component
             component_type = component['type']
-            print(f"\nPlacing component type: {component_type}")
-            
-            # Initialize counter for this component type if not exists
-            if component_type not in component_counts:
-                component_counts[component_type] = 0
+            feed_number = component.get('feed_number', 0)  # Default to feed 0 if not specified
+            print(f"\nPlacing component type: {component_type} from feed {feed_number}")
             
             for placement in component['placements']:
-                # Calculate Y offset based on number of components placed
-                y_offset = component_counts[component_type] * 4  # 4mm offset per component
+                # Feed component using the feeder system
+                print(f"Feeding component from feed {feed_number}...")
+                try:
+                    self.feeder.feed(feed_number)
+                    print(f"Successfully fed component from feed {feed_number}")
+                except Exception as e:
+                    print(f"Warning: Failed to feed component from feed {feed_number}: {str(e)}")
+                    continue
                 
                 # Find component on reel using upper camera
                 print("Locating component on reel...")
@@ -243,16 +420,19 @@ class PnPLayer:
                 print("Picking up component...")
                 self.printer.send_gcode_command("G0 Z150 F6000")  # Safe height first
                 
-                # Adjust Y position based on component count
-                adjusted_y = component_pos[1] + y_offset
+                # Move to component position (no Y offset calculation needed)
                 self.printer.send_gcode_command(
-                    f"G0 X{component_pos[0]} Y{adjusted_y} F6000"
+                    f"G0 X{component_pos[0]} Y{component_pos[1]} F6000"
                 )
                 time.sleep(1.0)
                 
                 # Move down to pick up component
                 self.printer.send_gcode_command("G0 Z50 F6000")
                 self.control_vacuum(True)
+                
+                time.sleep(0.5)
+                self.printer.send_gcode_command("G0 Z-8 F6000")
+                self.control_solenoid(True)
                 time.sleep(0.5)
                 self.printer.send_gcode_command("G0 Z150 F6000")  # Back to safe height
                 
@@ -262,7 +442,7 @@ class PnPLayer:
                 self.printer.send_gcode_command(
                     f"G0 X{camera_pos[0]} Y{camera_pos[1]} Z{camera_pos[2]} F6000"
                 )
-                time.sleep(0.5)
+                time.sleep(2.5)
                 
                 # Check alignment
                 alignment = self.check_component_alignment()
@@ -271,23 +451,33 @@ class PnPLayer:
                     self.control_vacuum(False)
                     continue
                     
-                x_offset, y_offset, rot_offset = alignment
-                print(f"Detected offsets: X={x_offset:.2f}, Y={y_offset:.2f}, R={rot_offset:.2f}")
+                x_offset, y_offset, detected_rotation = alignment
+                target_rotation = placement['rotation']
+                rot_offset = target_rotation - detected_rotation
+                
+                print(f"Detected rotation: {detected_rotation:.2f}°, Target rotation: {target_rotation:.2f}°")
+                print(f"Detected offsets: X={x_offset:.2f}, Y={y_offset:.2f}, Rotation error: {rot_offset:.2f}°")
                 
                 # Reorient tool if needed
                 if abs(rot_offset) > 1.0:  # If rotation error > 1 degree
                     print(f"Reorienting tool by {rot_offset:.2f} degrees...")
-                    # TODO: Implement tool rotation
+                    # Rotate C axis by the opposite of the rotation error
+                    rotation_command = f"G0 C{rot_offset:.2f} F600"
+                    self.printer.send_gcode_command(rotation_command, check=False)
+                    time.sleep(1.0)  # Wait for rotation to complete
+                    print(f"Tool rotated by {rot_offset:.2f} degrees")
                 
                 # Check alignment again after reorientation
                 alignment = self.check_component_alignment()
                 if alignment is None:
                     print("Warning: Lost component after reorientation, skipping placement")
                     self.control_vacuum(False)
+                    self.control_solenoid(False)
                     continue
                     
-                x_offset, y_offset, rot_offset = alignment
-                print(f"Final offsets: X={x_offset:.2f}, Y={y_offset:.2f}, R={rot_offset:.2f}")
+                x_offset, y_offset, detected_rotation = alignment
+                rot_offset = target_rotation - detected_rotation
+                print(f"Final offsets: X={x_offset:.2f}, Y={y_offset:.2f}, Final rotation error: {rot_offset:.2f}°")
                 
                 # Move to placement location, accounting for offsets
                 print("Moving to placement location...")
@@ -296,7 +486,6 @@ class PnPLayer:
                 # Calculate final position with offsets and camera offset
                 final_x = placement['x'] - x_offset - self.camera_offset['X']
                 final_y = placement['y'] - y_offset - self.camera_offset['Y']
-                final_r = placement['rotation'] - rot_offset
                 
                 # Move to position
                 self.printer.send_gcode_command(
@@ -309,13 +498,11 @@ class PnPLayer:
                 # Place component
                 time.sleep(0.5)
                 self.control_vacuum(False)
+                self.control_solenoid(False)
                 time.sleep(0.5)
                 
                 # Move back to safe height
                 self.printer.send_gcode_command("G0 Z150 F6000")
-                
-                # Increment component counter for this type
-                component_counts[component_type] += 1
                 
         print("\nComponent placement complete!")
         
@@ -324,6 +511,17 @@ class PnPLayer:
         self.printer.close()
         self.camera_lower.cleanup()
         self.camera_upper.cleanup()
+        # Feeder cleanup is handled automatically when the object goes out of scope
+
+    def home_feeder(self) -> None:
+        """Home the feeder system to establish reference position."""
+        print("Homing feeder system...")
+        try:
+            self.feeder.home()
+            print("Feeder homing complete!")
+        except Exception as e:
+            print(f"Warning: Feeder homing failed: {str(e)}")
+            print("Continuing without feeder homing...")
 
 if __name__ == "__main__":
     # Example usage
