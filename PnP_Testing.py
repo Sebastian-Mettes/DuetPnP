@@ -127,6 +127,10 @@ class PnPTesting:
             
             if key == ord('q'):
                 break
+            elif key == ord('v'):  # Save image when 'v' is pressed
+                save_path = template_path.rsplit('.', 1)[0] + "_above.png"
+                cv2.imwrite(save_path, gray)
+                print(f"Saved image to {save_path}")
             elif key == ord('c'):  # Toggle auto-centering
                 auto_center = not auto_center
                 iteration = 0
@@ -278,8 +282,8 @@ class PnPTesting:
         time.sleep(0.5)
 
         # Calculate target position with camera offset
-        target_x = target_location['x'] - camera_offset['X']
-        target_y = target_location['y'] - camera_offset['Y']
+        target_x = target_location['x'] - camera_offset['X'] - 0.85 #Manual Offset
+        target_y = target_location['y'] - camera_offset['Y'] - 0.40 #Manual Offset
         target_z = target_location['z']
         
         print(f"Moving to adjusted target position: X={target_x:.3f}, Y={target_y:.3f}, Z={target_z:.3f}")
@@ -287,8 +291,8 @@ class PnPTesting:
         # Move to target position
         self.printer.send_gcode_command(f"G0 X{target_x} Y{target_y} F6000")
         self.printer.send_gcode_command(f"G0 Z10 F6000")
-        self.printer.send_gcode_command(f"G0 Z-7.6 F300")
-        time.sleep(2.5)
+        self.printer.send_gcode_command(f"G0 Z-8.2 F600")
+        time.sleep(5.5)
         self.printer.send_gcode_command("M106 P2 S15")  # Open solenoid valve (Fan 2)
 
         time.sleep(3.5) #Long Delay for observation
@@ -308,7 +312,7 @@ class PnPTesting:
         
         # Create window for verification
         cv2.namedWindow('Pickup Verification')
-        
+        print("Pickup Verification: Press 'q' to quit, 'c' to continue or v to save image")
         while True:
             # Capture frame from lower camera
             frame = self.camera_lower.capture_frame()
@@ -321,13 +325,19 @@ class PnPTesting:
             # Handle key presses
             key = cv2.waitKey(1) & 0xFF
             
-            if key == ord('q'):
+            if key == ord('v'):
+                save_path = "image_below.png"
+                cv2.imwrite(save_path, frame)
+                print(f"Saved image to {save_path}")
+                time.sleep(3.0)
+            
+            elif key == ord('c'):
                 # Turn off lower camera ring light
                 self.printer.send_gcode_command("M106 P4 S0")  # Turn off lower camera ring light
                 time.sleep(0.5)
                 cv2.destroyWindow('Pickup Verification')
                 return True
-            elif key == ord('c'):
+            elif key == ord('q'):
                 # Turn off vacuum and lower camera ring light
                 self.printer.send_gcode_command("M106 P1 S0")  # Turn off vacuum pump
                 self.printer.send_gcode_command("M106 P2 S0")  # Close solenoid valve
@@ -473,7 +483,13 @@ class PnPTesting:
                     # Store rotation
                     self.target['rotation'] = best_angle
                     
+                    # Rotate C axis to compensate for target rotation
+                    c_rotation = -best_angle  # Negative of detected angle
+                    self.printer.send_gcode_command(f"G0 C{c_rotation:.3f} F400")
+                    time.sleep(1.5)  # Wait for rotation to complete
+                    
                     print(f"Target rotation: {self.target['rotation']}°")
+                    print(f"C axis rotated to: {c_rotation}°")
                     print(f"Target offset: X={self.target['offset']['X']:.3f}, Y={self.target['offset']['Y']:.3f}, Z={self.target['offset']['Z']:.3f}")
                     
                     # Save target data to JSON file
@@ -503,8 +519,8 @@ class PnPTesting:
                 current_pos = self.printer.parse_position(self.printer.response)
                 
                 # Calculate move distance using current conversion factor
-                x_move = -x_offset * pixels_to_mm
-                y_move = y_offset * pixels_to_mm
+                x_move = -y_offset * pixels_to_mm
+                y_move = x_offset * pixels_to_mm
                 
                 # Calculate new position
                 new_x = current_pos['X'] + x_move
@@ -530,28 +546,38 @@ class PnPTesting:
         
     def cleanup(self):
         """Clean up resources."""
-        self.printer.close()
+        # Send gcode commands before closing printer connection
+        try:
+            self.printer.send_gcode_command("M106 P1 S0", check=False)  # Turn off vacuum pump
+            time.sleep(0.5)
+            self.printer.send_gcode_command("M106 P2 S0", check=False)  # Turn off solenoid valve 
+            time.sleep(0.5)
+            self.printer.send_gcode_command("M106 P3 S0", check=False)  # Turn off upper LED ring
+            time.sleep(0.5) 
+            self.printer.send_gcode_command("M106 P4 S0", check=False)  # Turn off lower LED ring
+            time.sleep(0.5)  # Wait for outputs to update
+        except:
+            print("Warning: Could not send final gcode commands")
+            
+        # Clean up resources
         self.camera_upper.cleanup()
         self.camera_lower.cleanup()
-        self.printer.send_gcode_command("M106 P1 S0")  # Turn off vacuum pump
-        self.printer.send_gcode_command("M106 P2 S0")  # Turn off solenoid valve
-        self.printer.send_gcode_command("M106 P3 S0")  # Turn off upper LED ring
-        self.printer.send_gcode_command("M106 P4 S0")  # Turn off lower LED ring
-        time.sleep(0.5)  # Wait for outputs to update
+        self.printer.close()
 
 if __name__ == "__main__":
     # Example usage
     pnp_test = PnPTesting()
-    try:
         # Step 1: Find target with camera
-        pnp_test.find_target_with_camera(
-            location=(-42.8, 200.1, 144.00),  # Example target position
-            template_path="Resistor_G_Samp.png"  # Path to your template image
+    pnp_test.find_target_with_camera(
+            location=(-67.8, 230.1, 144.00),  # Example target position
+            #template_path="Resistor_G_Samp.png"  # Path to your template image
+            template_path="led_below.png"  # Path to your template image
         )
         
         # Step 2: Pickup and verify
-        if pnp_test.pickup_and_verify():
+    if pnp_test.pickup_and_verify():
             # Step 3: Determine rotation
-            pnp_test.determine_rotation(template_path="Resistor_Rotation_Template.png")
-    finally:
+        pnp_test.determine_rotation(template_path="led_above.png")
+    else:
         pnp_test.cleanup()
+    pnp_test.cleanup()

@@ -1,0 +1,9 @@
+{
+    "rotation": 0,
+    "offset": {
+        "X": -0.136,
+        "Y": 0.301,
+        "Z": 0
+    },
+    "template_path": "sensor_below.png"
+}
