@@ -2,8 +2,8 @@
     "components": [
         {
             "type": "led",
-            "above_template": "led_above.png",
-            "below_template": "led_below.png",
+            "upper_template": "led_above.png",
+            "lower_template": "led_below.png",
             "feed_number": 0,
             "reel_location": {
                 "x": -67.8,
@@ -33,8 +33,8 @@
         },
         {
             "type": "resistor",
-            "above_template": "resistor_above.png",
-            "below_template": "resistor_below.png",
+            "upper_template": "resistor_above.png",
+            "lower_template": "resistor_below.png",
             "feed_number": 1,
             "reel_location": {
                 "x": -67.8,
@@ -64,8 +64,8 @@
         },
         {
             "type": "sensor",
-            "above_template": "sensor_above.png",
-            "below_template": "sensor_below.png",
+            "upper_template": "sensor_above.png",
+            "lower_template": "sensor_below.png",
             "feed_number": 2,
             "reel_location": {
                 "x": -67.8,
