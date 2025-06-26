@@ -71,12 +71,14 @@ class PnPLayer:
                 # Load upper camera template (for component identification)
                 upper_template = cv2.imread(component['upper_template'], cv2.IMREAD_GRAYSCALE)
                 if upper_template is None:
+                    print(component)
                     raise ValueError(f"Could not load upper template image: {component['upper_template']}")
                 self.upper_templates[component['type']] = upper_template
                 
                 # Load lower camera template (for alignment and orientation)
                 lower_template = cv2.imread(component['lower_template'], cv2.IMREAD_GRAYSCALE)
                 if lower_template is None:
+                    print(component)
                     raise ValueError(f"Could not load lower template image: {component['lower_template']}")
                 self.lower_templates[component['type']] = lower_template
                 
