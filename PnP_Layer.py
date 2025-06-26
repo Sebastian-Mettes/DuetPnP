@@ -486,8 +486,8 @@ class PnPLayer:
                 self.printer.send_gcode_command("M106 P3 S0")  # Turn off LED
                 return None
             elif key == ord('c') or key == ord('C'):
-                print("Continuing without centering")
-                break
+                print("Continuing centering")
+                
             
             iteration += 1
         
