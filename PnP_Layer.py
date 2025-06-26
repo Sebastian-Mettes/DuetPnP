@@ -488,9 +488,17 @@ class PnPLayer:
                             self.printer.send_gcode_command(rotation_command, check=False)
                             time.sleep(1.0)  # Wait for rotation to complete
                             print(f"Tool rotated by {rot_offset:.2f} degrees")
+                        print("Checking component position... 2nd time")
+                        camera_pos = self.printer.camera_location
+                        self.printer.send_gcode_command(
+                            f"G0 X{camera_pos[0]} Y{camera_pos[1]} Z{camera_pos[2]} F6000"
+                        )
+                        time.sleep(2.5)
                         
+                        # Check alignment
+                        alignment = self.check_component_alignment()
                         # Note: Removed second rotation check to avoid issues
-                        
+                        x_offset, y_offset, detected_rotation = alignment
                         # Move to placement location, accounting for offsets
                         print("Moving to placement location...")
                         self.printer.send_gcode_command("G0 Z150 F6000")  # Safe height first
