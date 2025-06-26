@@ -444,6 +444,9 @@ class PnPLayer:
                     centered = True
                     cv2.putText(display_frame, "TARGET CENTERED!", (10, 30),
                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                    self.printer.send_gcode_command("M114", check=False)
+                    current_pos = self.printer.parse_position(self.printer.response)
+                    print(f"Current position: {current_pos}")
                 else:
                     # Move to center the target
                     x_move = -x_offset * pixels_to_mm
@@ -500,8 +503,8 @@ class PnPLayer:
             return None
         
         # Convert pixel coordinates to machine coordinates and apply camera offset
-        x = -result[0] * pixels_to_mm + self.camera_offset['X']
-        y = result[1] * pixels_to_mm + self.camera_offset['Y']
+        x = current_pos[0] - self.camera_offset['X'] -0.85
+        y = current_pos[1] - self.camera_offset['Y'] -0.40
         rotation = result[2]
         
         print(f"Found component at machine coordinates: X={x:.3f}, Y={y:.3f}, rotation={rotation:.1f}°")
@@ -560,7 +563,7 @@ class PnPLayer:
                         print("Picking up component...")
                         self.printer.send_gcode_command("G0 Z150 F6000")  # Safe height first
                         
-                        # Move to component position (no Y offset calculation needed)
+                        # Move to component position 
                         self.printer.send_gcode_command(
                             f"G0 X{component_pos[0]} Y{component_pos[1]} F6000"
                         )
