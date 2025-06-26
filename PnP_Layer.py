@@ -355,6 +355,10 @@ class PnPLayer:
         time.sleep(0.5)
         
         # Move to safe height first, then to reel location
+        self.printer.send_gcode_command("G90")
+        time.sleep(1.0)
+        self.printer.send_gcode_command("G0 X0 Y0 F6000")
+        time.sleep(1.0)
         self.printer.send_gcode_command("G0 Z150 F6000")
         time.sleep(1.0)
         self.printer.send_gcode_command(f"G0 X{reel_x} Y{reel_y} F6000")
