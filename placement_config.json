@@ -1,0 +1,99 @@
+{
+    "components": [
+        {
+            "type": "led",
+            "upper_template": "led_upper.jpg",
+            "lower_template": "led_lower.jpg",
+            "feed_number": 0,
+            "reel_location": {
+                "x": -67.8,
+                "y": 230.1,
+                "z": 144.0
+            },
+            "placements": [
+                {
+                    "x": 84.4,
+                    "y": 113.38,
+                    "z": 2.0,
+                    "rotation": 0
+                },
+                {
+                    "x": 119.87,
+                    "y": 86.14,
+                    "z": 2.0,
+                    "rotation": 120
+                },
+                {
+                    "x": 125.73,
+                    "y": 130.48,
+                    "z": 2.0,
+                    "rotation": -120
+                }
+            ]
+        },
+        {
+            "type": "resistor",
+            "upper_template": "resistor_upper.jpg",
+            "lower_template": "resistor_lower.jpg",
+            "feed_number": 1,
+            "reel_location": {
+                "x": -67.8,
+                "y": 230.1,
+                "z": 144.0
+            },
+            "placements": [
+                {
+                    "x": 87.99,
+                    "y": 113.38,
+                    "z": 2.0,
+                    "rotation": 0
+                },
+                {
+                    "x": 118.075,
+                    "y": 89.25,
+                    "z": 2.0,
+                    "rotation": 120
+                },
+                {
+                    "x": 123.935,
+                    "y": 127.37,
+                    "z": 2.0,
+                    "rotation": -120
+                }
+            ]
+        },
+        {
+            "type": "sensor",
+            "upper_template": "sensor_upper.jpg",
+            "lower_template": "sensor_lower.jpg",
+            "feed_number": 2,
+            "reel_location": {
+                "x": -67.8,
+                "y": 230.1,
+                "z": 144.0
+            },
+            "placements": [
+                {
+                    "x": 88.0,
+                    "y": 110.0,
+                    "z": 2.0,
+                    "rotation": 0
+                },
+                {
+                    "x": 121.0,
+                    "y": 90.95,
+                    "z": 2.0,
+                    "rotation": 120
+                },
+                {
+                    "x": 121.0,
+                    "y": 129.05,
+                    "z": 2.0,
+                    "rotation": -120
+                }
+            ]
+        }
+    ],
+    "vacuum_pin": "fan1",
+    "solenoid_pin": "fan2"
+} 

@@ -24,6 +24,8 @@ class PnPLayer:
         self.load_config(config_file)
         self.load_camera_offset()
         
+        
+        
         # Home the feeder system
         self.home_feeder()
         
@@ -370,8 +372,8 @@ class PnPLayer:
             return None
             
         # Convert pixel coordinates to machine coordinates and apply camera offset
-        x = result[0] + self.camera_offset['X']
-        y = result[1] + self.camera_offset['Y']
+        x = result[0] + self.camera_offset['X']-0.85
+        y = result[1] + self.camera_offset['Y']-0.40
         rotation = result[2]
         
         print(f"Found component at machine coordinates: X={x:.3f}, Y={y:.3f}, rotation={rotation:.1f}°")
@@ -396,115 +398,227 @@ class PnPLayer:
             print(f"\nPlacing component type: {component_type} from feed {feed_number}")
             
             for placement in component['placements']:
-                # Feed component using the feeder system
-                print(f"Feeding component from feed {feed_number}...")
-                try:
-                    self.feeder.feed(feed_number)
-                    print(f"Successfully fed component from feed {feed_number}")
-                except Exception as e:
-                    print(f"Warning: Failed to feed component from feed {feed_number}: {str(e)}")
-                    continue
+                # Retry loop for component placement
+                max_retries = 3
+                retry_count = 0
+                placement_successful = False
                 
-                # Find component on reel using upper camera
-                print("Locating component on reel...")
-                component_pos = self.find_component_on_reel()
-                if component_pos is None:
-                    print("Warning: Could not locate component on reel, skipping")
-                    continue
-                    
-                # Switch to picker tool (Tool 2)
-                print("Switching to picker tool...")
-                self.printer.send_gcode_command("T2")
+                while retry_count < max_retries and not placement_successful:
+                    try:
+                        # Feed component using the feeder system
+                        print(f"Feeding component from feed {feed_number}...")
+                        try:
+                            self.feeder.feed(feed_number)
+                            print(f"Successfully fed component from feed {feed_number}")
+                        except Exception as e:
+                            print(f"Warning: Failed to feed component from feed {feed_number}: {str(e)}")
+                            retry_count += 1
+                            continue
+                        
+                        # Find component on reel using upper camera
+                        print("Locating component on reel...")
+                        component_pos = self.find_component_on_reel()
+                        if component_pos is None:
+                            print("Warning: Could not locate component on reel, skipping")
+                            retry_count += 1
+                            continue
+                            
+                        # Switch to picker tool (Tool 2)
+                        print("Switching to picker tool...")
+                        self.printer.send_gcode_command("T2")
+                        
+                        # Move to component location and pick up
+                        print("Picking up component...")
+                        self.printer.send_gcode_command("G0 Z150 F6000")  # Safe height first
+                        
+                        # Move to component position (no Y offset calculation needed)
+                        self.printer.send_gcode_command(
+                            f"G0 X{component_pos[0]} Y{component_pos[1]} F6000"
+                        )
+                        time.sleep(1.0)
+                        
+                        # Move down to pick up component
+                        self.printer.send_gcode_command("G0 Z50 F6000")
+                        self.control_vacuum(True)
+                        
+                        time.sleep(0.5)
+                        self.printer.send_gcode_command("G0 Z-8 F6000")
+                        self.control_solenoid(True)
+                        time.sleep(0.5)
+                        self.printer.send_gcode_command("G0 Z150 F6000")  # Back to safe height
+                        
+                        # Move to lower camera for alignment check
+                        print("Checking component alignment...")
+                        camera_pos = self.printer.camera_location
+                        self.printer.send_gcode_command(
+                            f"G0 X{camera_pos[0]} Y{camera_pos[1]} Z{camera_pos[2]} F6000"
+                        )
+                        time.sleep(2.5)
+                        
+                        # Check alignment
+                        alignment = self.check_component_alignment()
+                        if alignment is None:
+                            print("Warning: Could not detect component, skipping placement")
+                            self.control_vacuum(False)
+                            retry_count += 1
+                            continue
+                            
+                        x_offset, y_offset, detected_rotation = alignment
+                        target_rotation = placement['rotation']
+                        rot_offset = target_rotation - detected_rotation
+                        
+                        print(f"Detected rotation: {detected_rotation:.2f}°, Target rotation: {target_rotation:.2f}°")
+                        print(f"Detected offsets: X={x_offset:.2f}, Y={y_offset:.2f}, Rotation error: {rot_offset:.2f}°")
+                        
+                        # Reorient tool if needed
+                        if abs(rot_offset) > 1.0:  # If rotation error > 1 degree
+                            print(f"Reorienting tool by {rot_offset:.2f} degrees...")
+                            # Rotate C axis by the opposite of the rotation error
+                            rotation_command = f"G0 C{rot_offset:.2f} F600"
+                            self.printer.send_gcode_command(rotation_command, check=False)
+                            time.sleep(1.0)  # Wait for rotation to complete
+                            print(f"Tool rotated by {rot_offset:.2f} degrees")
+                        
+                        # Note: Removed second rotation check to avoid issues
+                        
+                        # Move to placement location, accounting for offsets
+                        print("Moving to placement location...")
+                        self.printer.send_gcode_command("G0 Z150 F6000")  # Safe height first
+                        
+                        # Calculate final position with offsets and camera offset
+                        final_x = placement['x'] - x_offset 
+                        final_y = placement['y'] - y_offset
+                        
+                        # Move to position
+                        self.printer.send_gcode_command(
+                            f"G0 X{final_x} Y{final_y} F6000"
+                        )
+                        self.printer.send_gcode_command(
+                            f"G0 Z{placement['z']} F1200"
+                        )
+                        
+                        # Place component
+                        time.sleep(0.5)
+                        self.control_solenoid(False)
+                        self.control_vacuum(False)
+                        time.sleep(0.5)
+                        
+                        # Move back to safe height
+                        self.printer.send_gcode_command("G0 Z150 F6000")
+                        
+                        # Verification step: Show upper camera view of placed component
+                        print("Verifying component placement...")
+                        self.verify_component_placement(placement, final_x, final_y)
+                        
+                        # If we get here, placement was successful and user chose to continue
+                        placement_successful = True
+                        
+                    except Exception as e:
+                        if "User requested retry" in str(e):
+                            retry_count += 1
+                            print(f"Retrying placement (attempt {retry_count}/{max_retries})...")
+                            # Turn off vacuum and solenoid in case they were left on
+                            self.control_vacuum(False)
+                            self.control_solenoid(False)
+                            continue
+                        elif "User requested quit" in str(e):
+                            print("User requested to quit placement process.")
+                            return  # Exit the entire placement process
+                        else:
+                            print(f"Error during placement: {str(e)}")
+                            retry_count += 1
+                            if retry_count >= max_retries:
+                                print(f"Failed to place component after {max_retries} attempts, moving to next component.")
+                                break
+                            continue
                 
-                # Move to component location and pick up
-                print("Picking up component...")
-                self.printer.send_gcode_command("G0 Z150 F6000")  # Safe height first
-                
-                # Move to component position (no Y offset calculation needed)
-                self.printer.send_gcode_command(
-                    f"G0 X{component_pos[0]} Y{component_pos[1]} F6000"
-                )
-                time.sleep(1.0)
-                
-                # Move down to pick up component
-                self.printer.send_gcode_command("G0 Z50 F6000")
-                self.control_vacuum(True)
-                
-                time.sleep(0.5)
-                self.printer.send_gcode_command("G0 Z-8 F6000")
-                self.control_solenoid(True)
-                time.sleep(0.5)
-                self.printer.send_gcode_command("G0 Z150 F6000")  # Back to safe height
-                
-                # Move to lower camera for alignment check
-                print("Checking component alignment...")
-                camera_pos = self.printer.camera_location
-                self.printer.send_gcode_command(
-                    f"G0 X{camera_pos[0]} Y{camera_pos[1]} Z{camera_pos[2]} F6000"
-                )
-                time.sleep(2.5)
-                
-                # Check alignment
-                alignment = self.check_component_alignment()
-                if alignment is None:
-                    print("Warning: Could not detect component, skipping placement")
-                    self.control_vacuum(False)
-                    continue
-                    
-                x_offset, y_offset, detected_rotation = alignment
-                target_rotation = placement['rotation']
-                rot_offset = target_rotation - detected_rotation
-                
-                print(f"Detected rotation: {detected_rotation:.2f}°, Target rotation: {target_rotation:.2f}°")
-                print(f"Detected offsets: X={x_offset:.2f}, Y={y_offset:.2f}, Rotation error: {rot_offset:.2f}°")
-                
-                # Reorient tool if needed
-                if abs(rot_offset) > 1.0:  # If rotation error > 1 degree
-                    print(f"Reorienting tool by {rot_offset:.2f} degrees...")
-                    # Rotate C axis by the opposite of the rotation error
-                    rotation_command = f"G0 C{rot_offset:.2f} F600"
-                    self.printer.send_gcode_command(rotation_command, check=False)
-                    time.sleep(1.0)  # Wait for rotation to complete
-                    print(f"Tool rotated by {rot_offset:.2f} degrees")
-                
-                # Check alignment again after reorientation
-                alignment = self.check_component_alignment()
-                if alignment is None:
-                    print("Warning: Lost component after reorientation, skipping placement")
-                    self.control_vacuum(False)
-                    self.control_solenoid(False)
-                    continue
-                    
-                x_offset, y_offset, detected_rotation = alignment
-                rot_offset = target_rotation - detected_rotation
-                print(f"Final offsets: X={x_offset:.2f}, Y={y_offset:.2f}, Final rotation error: {rot_offset:.2f}°")
-                
-                # Move to placement location, accounting for offsets
-                print("Moving to placement location...")
-                self.printer.send_gcode_command("G0 Z150 F6000")  # Safe height first
-                
-                # Calculate final position with offsets and camera offset
-                final_x = placement['x'] - x_offset - self.camera_offset['X']
-                final_y = placement['y'] - y_offset - self.camera_offset['Y']
-                
-                # Move to position
-                self.printer.send_gcode_command(
-                    f"G0 X{final_x} Y{final_y} F6000"
-                )
-                self.printer.send_gcode_command(
-                    f"G0 Z{placement['z']} F1200"
-                )
-                
-                # Place component
-                time.sleep(0.5)
-                self.control_vacuum(False)
-                self.control_solenoid(False)
-                time.sleep(0.5)
-                
-                # Move back to safe height
-                self.printer.send_gcode_command("G0 Z150 F6000")
-                
+                if not placement_successful:
+                    print(f"Component placement failed after {max_retries} attempts, moving to next component.")
+        
         print("\nComponent placement complete!")
+        
+    def verify_component_placement(self, placement: dict, final_x: float, final_y: float) -> None:
+        """
+        Verify component placement using upper camera.
+        Shows camera view of placed component and allows user to continue or retry.
+        
+        Args:
+            placement: Placement configuration for the component
+            final_x: Final X coordinate where component was placed
+            final_y: Final Y coordinate where component was placed
+        """
+        # Switch to upper camera tool (Tool 3)
+        self.printer.send_gcode_command("T3")
+        
+        # Turn on upper camera ring light
+        self.printer.send_gcode_command("M106 P3 S255")  # Turn on upper camera ring light (Fan 3)
+        time.sleep(0.5)
+        
+        # Move to safe height first, then to placement location
+        self.printer.send_gcode_command("G0 Z150 F6000")
+        time.sleep(1.0)
+        self.printer.send_gcode_command(f"G0 X{final_x} Y{final_y} F6000")
+        time.sleep(1.0)
+        self.printer.send_gcode_command("G0 Z166 F6000")  # Move to camera height
+        time.sleep(1.5)  # Wait for movement to complete and camera image to stabilize
+        
+        # Create window for verification
+        cv2.namedWindow('Component Verification')
+        
+        print("Component verification:")
+        print("- Press 'C' to continue to next component")
+        print("- Press 'R' to retry this placement")
+        print("- Press 'Q' to quit")
+        
+        while True:
+            # Capture frame from upper camera
+            frame = self.camera_upper.capture_frame()
+            if frame is None:
+                continue
+                
+            # Add text overlay with instructions
+            cv2.putText(frame, "Component Verification", (10, 30),
+                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.putText(frame, "Press 'C' to continue, 'R' to retry, 'Q' to quit", (10, 60),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            cv2.putText(frame, f"Position: X={final_x:.2f}, Y={final_y:.2f}", (10, 90),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            cv2.putText(frame, f"Component: {self.current_component['type']}", (10, 120),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            
+            # Show frame
+            cv2.imshow('Component Verification', frame)
+            
+            # Handle key presses
+            key = cv2.waitKey(1) & 0xFF
+            
+            if key == ord('c') or key == ord('C'):
+                print("Continuing to next component...")
+                break
+            elif key == ord('r') or key == ord('R'):
+                print("Retrying component placement...")
+                # Turn off camera and close window
+                self.printer.send_gcode_command("M106 P3 S0")  # Turn off upper camera ring light
+                cv2.destroyWindow('Component Verification')
+                # Raise an exception to trigger retry (will be caught in place_components)
+                raise Exception("User requested retry")
+            elif key == ord('q') or key == ord('Q'):
+                print("Quitting component placement...")
+                # Turn off camera and close window
+                self.printer.send_gcode_command("M106 P3 S0")  # Turn off upper camera ring light
+                cv2.destroyWindow('Component Verification')
+                # Raise an exception to stop placement
+                raise Exception("User requested quit")
+        
+        # Turn off upper camera ring light
+        self.printer.send_gcode_command("M106 P3 S0")  # Turn off upper camera ring light
+        time.sleep(0.5)
+        
+        # Deselect camera tool before closing window
+        self.printer.send_gcode_command("T-1")
+        cv2.destroyWindow('Component Verification')
+        
+        print("Component verification complete!")
         
     def cleanup(self) -> None:
         """Clean up resources."""
@@ -525,7 +639,7 @@ class PnPLayer:
 
 if __name__ == "__main__":
     # Example usage
-    pnp = PnPLayer("placement_config.json", calibrate_tool=True)
+    pnp = PnPLayer("placement_config.json", calibrate_tool=False) #Already Calibrated!
     try:
         pnp.place_components()
     finally:
