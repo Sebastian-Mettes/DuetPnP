@@ -400,7 +400,8 @@ class PnPLayer:
         # Move to safe height with upper camera (Tool 3)
         self.printer.send_gcode_command("T3")  # Select upper camera tool
         self.printer.send_gcode_command("G0 Z150 F6000")  # Move to safe height
-        
+        self.feeder = Feeder()
+        self.feeder.home()
         for component in self.config['components']:
             self.current_component = component
             component_type = component['type']
