@@ -312,10 +312,18 @@ class PnPLayer:
         if result is None:
             return None
             
-        # Calculate offsets from center of image
+        # Calculate offsets from center of image in pixels
         image_center = (frame.shape[1]/2, frame.shape[0]/2)
-        x_offset = result[0] - image_center[0]
-        y_offset = result[1] - image_center[1]
+        x_offset_pixels = result[0] - image_center[0]
+        y_offset_pixels = result[1] - image_center[1]
+        
+        # Convert pixel offsets to machine coordinates (mm)
+        # Using the same conversion factor as in match_template
+        pixels_to_mm = 0.015  # Conversion factor from pixels to mm
+        # Apply coordinate system transformation (same as in match_template)
+        x_offset = -y_offset_pixels * pixels_to_mm
+        y_offset = x_offset_pixels * pixels_to_mm
+        
         rotation = result[2]
         
         return (x_offset, y_offset, rotation)
@@ -372,8 +380,10 @@ class PnPLayer:
             return None
             
         # Convert pixel coordinates to machine coordinates and apply camera offset
-        x = result[0] + self.camera_offset['X']-0.85
-        y = result[1] + self.camera_offset['Y']-0.40
+        pixels_to_mm = 0.015  # Conversion factor from pixels to mm
+        # Apply coordinate system transformation (same as in match_template)
+        x = -result[1] * pixels_to_mm + self.camera_offset['X']
+        y = result[0] * pixels_to_mm + self.camera_offset['Y']
         rotation = result[2]
         
         print(f"Found component at machine coordinates: X={x:.3f}, Y={y:.3f}, rotation={rotation:.1f}°")

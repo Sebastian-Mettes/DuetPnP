@@ -26,7 +26,7 @@ class Feeder:
         # Slowly rotate until stall
         print("Rotating feeder until stall...")
         cal.send_gcode_command("G91")
-        cal.send_gcode_command("G1 B120 F900")  # Rotate B axis 120 degrees at 900mm/min
+        cal.send_gcode_command("G1 B0 F900")  # Rotate B axis 120 degrees at 900mm/min
         
         print("\nPress 'c' to test feed at current position")
         print("Then enter belt number (0-{}) that successfully fed".format(self.num_belts-1))
