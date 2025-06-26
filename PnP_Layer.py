@@ -364,98 +364,147 @@ class PnPLayer:
         self.printer.send_gcode_command(f"G0 Z{reel_z} F6000")
         time.sleep(1.5)  # Wait for movement to complete and camera image to stabilize
         
-        # Capture image from upper camera
-        frame = self.camera_upper.capture_frame()
-        if frame is None:
-            print("Could not capture frame from upper camera")
-            self.printer.send_gcode_command("M106 P3 S0")  # Turn off LED
-            return None
-            
         # Create window for visual feedback
         window_name = 'Component Detection - Upper Camera'
         cv2.namedWindow(window_name)
         
-        # Try to match current component template
-        result = self.match_template(
-            frame, 
-            self.upper_templates[self.current_component['type']],
-            camera_type="upper"
-        )
+        # Constants for centering
+        TOLERANCE = 2  # Pixels from center considered "centered"
+        pixels_to_mm = 0.015  # Conversion factor from pixels to mm
+        MAX_ITERATIONS = 20  # Maximum number of centering attempts
         
-        if result is None:
-            print("Could not find component in camera view")
-            # Show the frame even if no component was found
-            display_frame = frame.copy()
-            cv2.putText(display_frame, "No component detected", (10, 30),
-                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-            cv2.putText(display_frame, f"Looking for: {self.current_component['type']}", (10, 60),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            cv2.putText(display_frame, f"Reel location: X={reel_x:.2f}, Y={reel_y:.2f}", (10, 90),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            cv2.putText(display_frame, "Press any key to continue", (10, 120),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        iteration = 0
+        centered = False
+        
+        while iteration < MAX_ITERATIONS and not centered:
+            # Capture image from upper camera
+            frame = self.camera_upper.capture_frame()
+            if frame is None:
+                print("Could not capture frame from upper camera")
+                cv2.destroyWindow(window_name)
+                self.printer.send_gcode_command("M106 P3 S0")  # Turn off LED
+                return None
             
+            # Try to match current component template
+            result = self.match_template(
+                frame, 
+                self.upper_templates[self.current_component['type']],
+                threshold=0.5,
+                auto_center=False,  # We'll handle centering manually
+                camera_type="upper"
+            )
+            
+            # Create visual feedback image
+            display_frame = frame.copy()
+            if len(display_frame.shape) == 2:
+                display_frame = cv2.cvtColor(display_frame, cv2.COLOR_GRAY2BGR)
+            
+            # Get image dimensions and calculate center
+            image_height, image_width = display_frame.shape[:2]
+            image_center = (image_width // 2, image_height // 2)
+            
+            # Draw crosshairs at image center (red)
+            cv2.line(display_frame, (image_center[0]-20, image_center[1]), (image_center[0]+20, image_center[1]), (0, 0, 255), 2)
+            cv2.line(display_frame, (image_center[0], image_center[1]-20), (image_center[0], image_center[1]+20), (0, 0, 255), 2)
+            
+            if result is None:
+                # No component detected
+                cv2.putText(display_frame, "No component detected", (10, 30),
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                cv2.putText(display_frame, f"Looking for: {self.current_component['type']}", (10, 60),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                cv2.putText(display_frame, f"Iteration: {iteration + 1}/{MAX_ITERATIONS}", (10, 90),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                cv2.putText(display_frame, "Press 'Q' to quit, 'C' to continue", (10, 120),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            else:
+                # Component detected
+                target_center = (int(result[0]), int(result[1]))
+                
+                # Draw target detection (green)
+                cv2.circle(display_frame, target_center, 10, (0, 255, 0), 2)
+                cv2.circle(display_frame, target_center, 2, (0, 255, 0), -1)
+                
+                # Draw line from target to image center (blue)
+                cv2.line(display_frame, target_center, image_center, (255, 0, 0), 2)
+                
+                # Draw template outline (yellow)
+                template = self.upper_templates[self.current_component['type']]
+                h, w = template.shape
+                top_left = (int(result[0] - w/2), int(result[1] - h/2))
+                bottom_right = (int(result[0] + w/2), int(result[1] + h/2))
+                cv2.rectangle(display_frame, top_left, bottom_right, (0, 255, 255), 2)
+                
+                # Calculate offsets from center
+                x_offset = image_center[0] - result[0]
+                y_offset = image_center[1] - result[1]
+                
+                # Check if centered
+                if abs(x_offset) <= TOLERANCE and abs(y_offset) <= TOLERANCE:
+                    centered = True
+                    cv2.putText(display_frame, "TARGET CENTERED!", (10, 30),
+                               cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                else:
+                    # Move to center the target
+                    x_move = -x_offset * pixels_to_mm
+                    y_move = y_offset * pixels_to_mm
+                    
+                    # Get current machine position
+                    self.printer.send_gcode_command("M114", check=False)
+                    current_pos = self.printer.parse_position(self.printer.response)
+                    
+                    # Calculate new position
+                    new_x = current_pos['X'] + x_move
+                    new_y = current_pos['Y'] + y_move
+                    
+                    # Move to new position
+                    self.printer.send_gcode_command(f"G0 X{new_x:.3f} Y{new_y:.3f} F1200", check=False)
+                    time.sleep(1.5)  # Wait for move to complete
+                
+                # Add text information
+                cv2.putText(display_frame, f"Component: {self.current_component['type']}", (10, 60),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(display_frame, f"Pixel position: ({result[0]:.1f}, {result[1]:.1f})", (10, 90),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(display_frame, f"Offset: ({x_offset:.1f}, {y_offset:.1f}) pixels", (10, 120),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(display_frame, f"Rotation: {result[2]:.1f}°", (10, 150),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(display_frame, f"Iteration: {iteration + 1}/{MAX_ITERATIONS}", (10, 180),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(display_frame, "Press 'Q' to quit, 'C' to continue", (10, 210),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            
+            # Show the frame
             cv2.imshow(window_name, display_frame)
-            cv2.waitKey(0)
-            cv2.destroyWindow(window_name)
+            
+            # Handle key presses
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q') or key == ord('Q'):
+                print("Component detection cancelled by user")
+                cv2.destroyWindow(window_name)
+                self.printer.send_gcode_command("M106 P3 S0")  # Turn off LED
+                return None
+            elif key == ord('c') or key == ord('C'):
+                print("Continuing without centering")
+                break
+            
+            iteration += 1
+        
+        # Close window
+        cv2.destroyWindow(window_name)
+        
+        if not centered and result is None:
+            print("Could not find component in camera view")
             self.printer.send_gcode_command("M106 P3 S0")  # Turn off LED
             return None
-            
+        
         # Convert pixel coordinates to machine coordinates and apply camera offset
-        pixels_to_mm = 0.015  # Conversion factor from pixels to mm
-        # Apply coordinate system transformation (same as in match_template)
         x = -result[0] * pixels_to_mm + self.camera_offset['X']
         y = result[1] * pixels_to_mm + self.camera_offset['Y']
         rotation = result[2]
         
         print(f"Found component at machine coordinates: X={x:.3f}, Y={y:.3f}, rotation={rotation:.1f}°")
-        
-        # Create visual feedback image
-        display_frame = frame.copy()
-        if len(display_frame.shape) == 2:
-            display_frame = cv2.cvtColor(display_frame, cv2.COLOR_GRAY2BGR)
-        
-        # Get image dimensions and calculate center
-        image_height, image_width = display_frame.shape[:2]
-        image_center = (image_width // 2, image_height // 2)
-        
-        # Draw crosshairs at image center (red)
-        cv2.line(display_frame, (image_center[0]-20, image_center[1]), (image_center[0]+20, image_center[1]), (0, 0, 255), 2)
-        cv2.line(display_frame, (image_center[0], image_center[1]-20), (image_center[0], image_center[1]+20), (0, 0, 255), 2)
-        
-        # Draw target detection (green)
-        target_center = (int(result[0]), int(result[1]))
-        cv2.circle(display_frame, target_center, 10, (0, 255, 0), 2)
-        cv2.circle(display_frame, target_center, 2, (0, 255, 0), -1)
-        
-        # Draw line from target to image center (blue)
-        cv2.line(display_frame, target_center, image_center, (255, 0, 0), 2)
-        
-        # Draw template outline (yellow)
-        template = self.upper_templates[self.current_component['type']]
-        h, w = template.shape
-        top_left = (int(result[0] - w/2), int(result[1] - h/2))
-        bottom_right = (int(result[0] + w/2), int(result[1] + h/2))
-        cv2.rectangle(display_frame, top_left, bottom_right, (0, 255, 255), 2)
-        
-        # Add text information
-        cv2.putText(display_frame, f"Component: {self.current_component['type']}", (10, 30),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        cv2.putText(display_frame, f"Pixel position: ({result[0]:.1f}, {result[1]:.1f})", (10, 60),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        cv2.putText(display_frame, f"Machine position: X={x:.3f}, Y={y:.3f}", (10, 90),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        cv2.putText(display_frame, f"Rotation: {rotation:.1f}°", (10, 120),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        cv2.putText(display_frame, f"Reel location: X={reel_x:.2f}, Y={reel_y:.2f}", (10, 150),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        cv2.putText(display_frame, "Press any key to continue", (10, 180),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-        
-        # Show the frame
-        cv2.imshow(window_name, display_frame)
-        cv2.waitKey(0)  # Wait for user to press a key
-        cv2.destroyWindow(window_name)
         
         # Turn off LED
         self.printer.send_gcode_command("M106 P3 S0")
