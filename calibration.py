@@ -270,6 +270,20 @@ class CalibrateToolheads:
         
         return mappings
 
+    def get_current_tool(self):
+        """
+        Get the current toolhead number using Duet3 object model.
+        """
+        response = self.send_gcode_command("M409 K\"state.currentTool\"", check=False)
+        # Parse the JSON response
+        try:
+            data = json.loads(response)
+            return data.get('result', 0)  # Default to tool 0 if not found
+        except json.JSONDecodeError:
+            return 0
+
+
+
     def set_tool_offset(self, expected_position, toolhead_number):
         """
         Set the tool offset for a specific toolhead based on expected position.

@@ -132,11 +132,10 @@ class PnPLayer:
         # Constants for automatic centering
         TOLERANCE = 2  # Pixels from center considered "centered"
         INITIAL_PIXELS_TO_MM = 0.015  # Initial conversion factor
-        MAX_ITERATIONS = 20  # Maximum number of centering attempts
+        MAX_ITERATIONS = 5  # Maximum number of centering attempts
         
         # Create window for visual feedback
-        window_name = f'Template Matching - {camera_type.capitalize()} Camera'
-        cv2.namedWindow(window_name)
+
         
         iteration = 0
         pixels_to_mm = INITIAL_PIXELS_TO_MM
@@ -170,102 +169,13 @@ class PnPLayer:
             
             if best_score < threshold:
                 print(f"Template match score too low: {best_score}")
-                cv2.destroyWindow(window_name)
                 return None
             
             # Convert to center coordinates
             center_x = best_match[0] + template.shape[1]/2
             center_y = best_match[1] + template.shape[0]/2
             
-            # Create visual feedback image
-            display_image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR) if len(image.shape) == 2 else image.copy()
-            
-            # Draw crosshairs at image center
-            cv2.line(display_image, (IMAGE_CENTER[0]-20, IMAGE_CENTER[1]), (IMAGE_CENTER[0]+20, IMAGE_CENTER[1]), (0, 0, 255), 2)
-            cv2.line(display_image, (IMAGE_CENTER[0], IMAGE_CENTER[1]-20), (IMAGE_CENTER[0], IMAGE_CENTER[1]+20), (0, 0, 255), 2)
-            
-            # Draw target outline and center
-            h, w = template.shape
-            top_left = best_match
-            bottom_right = (top_left[0] + w, top_left[1] + h)
-            center = (int(center_x), int(center_y))
-            
-            # Draw rectangle around detected target
-            cv2.rectangle(display_image, top_left, bottom_right, (0, 255, 0), 2)
-            cv2.circle(display_image, center, 5, (0, 255, 0), -1)
-            
-            # Draw line from target center to image center
-            cv2.line(display_image, center, IMAGE_CENTER, (255, 0, 0), 2)
-            
-            # Add text information
-            cv2.putText(display_image, f"Match: {best_score:.2f}", (10, 30),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-            cv2.putText(display_image, f"Angle: {best_angle}°", (10, 60),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-            cv2.putText(display_image, f"Center: ({center_x:.1f}, {center_y:.1f})", (10, 90),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-            
-            # Show frame
-            cv2.imshow(window_name, display_image)
-            
-            # Check if we're centered within tolerance
-            x_offset = IMAGE_CENTER[0] - center_x
-            y_offset = IMAGE_CENTER[1] - center_y
-            
-            if abs(x_offset) <= TOLERANCE and abs(y_offset) <= TOLERANCE:
-                print(f"Target successfully centered! Score: {best_score:.3f}, Angle: {best_angle}°")
-                cv2.destroyWindow(window_name)
-                return (center_x, center_y, best_angle)
-            
-            # Auto-centering logic
-            if auto_center and iteration < MAX_ITERATIONS - 1:
-                # Get current machine position
-                self.printer.send_gcode_command("M114", check=False)
-                current_pos = self.printer.parse_position(self.printer.response)
-                
-                # Calculate move distance using current conversion factor
-                x_move = -y_offset * pixels_to_mm
-                y_move = x_offset * pixels_to_mm
-                
-                # Calculate new position
-                new_x = current_pos['X'] + x_move
-                new_y = current_pos['Y'] + y_move
-                
-                # Move to new position slowly
-                self.printer.send_gcode_command(f"G0 X{new_x:.3f} Y{new_y:.3f} F1200", check=False)
-                print(f"Centering iteration {iteration + 1}: offset (pixels) = ({x_offset:.1f}, {y_offset:.1f}), move (mm) = ({x_move:.3f}, {y_move:.3f})")
-                time.sleep(1.5)  # Wait for move to complete and camera image to update
-                
-                # Update image for next iteration
-                if camera_type == "upper":
-                    image = self.camera_upper.capture_frame()
-                else:
-                    image = self.camera_lower.capture_frame()
-                
-                if image is None:
-                    print("Could not capture updated frame")
-                    cv2.destroyWindow(window_name)
-                    return None
-                
-                # Convert to grayscale if needed
-                if len(image.shape) > 2:
-                    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            else:
-                # Manual mode or max iterations reached
-                key = cv2.waitKey(1) & 0xFF
-                if key == ord('q'):
-                    print("Template matching cancelled by user")
-                    cv2.destroyWindow(window_name)
-                    return None
-                elif key == ord('c'):
-                    print("Continuing without centering")
-                    cv2.destroyWindow(window_name)
-                    return (center_x, center_y, best_angle)
-            
-            iteration += 1
-        
-        print("Failed to center target after maximum iterations")
-        cv2.destroyWindow(window_name)
+           
         return (center_x, center_y, best_angle)
         
     def control_vacuum(self, state: bool) -> None:
