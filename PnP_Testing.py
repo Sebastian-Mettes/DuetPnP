@@ -12,8 +12,8 @@ class PnPTesting:
     def __init__(self):
         """Initialize PnP testing system."""
         self.printer = CalibrateToolheads()
-        self.camera_upper = VisionTools(2)  # Downward Facing Camera
-        self.camera_lower = VisionTools(0)  # Upward Facing Camera
+        self.camera_upper = VisionTools(2, target='tool')  # Downward Facing Camera
+        self.camera_lower = VisionTools(0, target='tool')  # Upward Facing Camera
         self.load_camera_offset()
         
         # Target object to store rotation and offset data

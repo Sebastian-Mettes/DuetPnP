@@ -67,8 +67,8 @@ class PnP:
         """
         Initializes all cameras for vision processing.
         """
-        self.camera_lower = Camera(0)   #Upward Facing Camera for finding toolheads
-        self.camera_upper = Camera(2)   #Downward Facing Camera for finding feeder parts
+        self.camera_lower = Camera(0, target='tool')   #Upward Facing Camera for finding toolheads
+        self.camera_upper = Camera(2, target='tool')   #Downward Facing Camera for finding feeder parts
         self.camera_lower.set_fixed_camera_offset(0, 0) #Manually determined values for camera offset
         self.camera_upper.set_fixed_camera_offset(0.85, 0.40) #Manually determined values for camera offset
     
@@ -269,7 +269,7 @@ class PnP:
                 #Move to Z height for placement:
                 self.printer.linear_move(z=placement['z'])
                 
-           
+            
                 #Turn off solenoid:
                 self.printer.send_gcode_command(f"M106 P{self.config['solenoid_pin'][3]} S0") #Turn off solenoid
                 time.sleep(0.5)

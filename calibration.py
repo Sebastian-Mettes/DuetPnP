@@ -364,7 +364,17 @@ class CalibrateToolheads:
         except Exception as e:
             print(f"Unexpected error setting tool offset: {str(e)}")
             raise
-    
+    def get_current_position(self):
+        """
+        Get the current position of the printer.
+        
+        Returns:
+            dict: Dictionary containing X, Y, Z positions
+        """
+
+        self.send_gcode_command("M114", check=False)
+        current_pos = self.parse_position(self.response)
+        return current_pos
     def linear_move(self, x: float = None, y: float = None, z: float = None):
         """
         Move the tool to a specified position.

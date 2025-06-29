@@ -57,6 +57,8 @@ class VisionTools:
         self.width = int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = int(self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.is_component_detected = False
+        # Initialize IMAGE_CENTER for backward compatibility
+        self.IMAGE_CENTER = (self.width // 2, self.height // 2)
         print(f"Camera initialized at {self.width}x{self.height} resolution")
         
         # HSV threshold values
@@ -84,8 +86,12 @@ class VisionTools:
     def set_fixed_camera_offset(self, x: float, y: float):
         """
         Set the fixed camera offset.
+        Stores both as dict (new format) and list (legacy format) for compatibility.
         """
-        self.camera_offset = {'X': x, 'Y': y}
+        # Legacy format for backward compatibility
+        self.camera_offset = [x, y]
+        # Also set CAMERA_OFFSET for backward compatibility
+        self.CAMERA_OFFSET = [x, y]
 
 
 
@@ -120,9 +126,16 @@ class VisionTools:
 
     def find_component(self, template_path):
         """
-        Find a component in the camera frame.
+        Find a component in the camera frame and determine its rotation.
+        
+        Args:
+            template_path: Path to template image file
+            
+        Returns:
+            tuple: (center_x, center_y, rotation_angle) if component found
+            None: If component not found
         """
-        #Load template image
+        # Load template image
         self.search_frame = self.frame.copy()
         template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
         if template is None:
@@ -131,32 +144,74 @@ class VisionTools:
         image_height, image_width = self.search_frame.shape[:2]
         self.IMAGE_CENTER = (image_width // 2, image_height // 2)
         gray = cv2.cvtColor(self.search_frame, cv2.COLOR_BGR2GRAY)
-        result = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
-        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-        h, w = template.shape
-        top_left = max_loc
-        bottom_right = (top_left[0] + w, top_left[1] + h)
-        center = (top_left[0] + w//2, top_left[1] + h//2)
         
-        cv2.rectangle(self.search_frame, top_left, bottom_right, (0, 255, 0), 2)
-        cv2.circle(self.search_frame, center, 5, (0, 255, 0), -1)
+        best_match = None
+        best_score = -1
+        best_angle = 0
         
-        # Draw image center crosshair
-        cv2.line(self.search_frame, (IMAGE_CENTER[0]-20, IMAGE_CENTER[1]), (IMAGE_CENTER[0]+20, IMAGE_CENTER[1]), (0, 0, 255), 2)
-        cv2.line(self.search_frame, (IMAGE_CENTER[0], IMAGE_CENTER[1]-20), (IMAGE_CENTER[0], IMAGE_CENTER[1]+20), (0, 0, 255), 2)
+        # Try different rotations
+        for angle in range(-175, 175, 5):  # 5-degree steps
+            # Rotate template
+            matrix = cv2.getRotationMatrix2D(
+                (template.shape[1]/2, template.shape[0]/2), 
+                angle, 1.0
+            )
+            rotated = cv2.warpAffine(
+                template, matrix, 
+                (template.shape[1], template.shape[0])
+            )
+            
+            # Template matching
+            result = cv2.matchTemplate(gray, rotated, cv2.TM_CCOEFF_NORMED)
+            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+            
+            if max_val > best_score:
+                best_score = max_val
+                best_match = max_loc
+                best_angle = angle
         
-        # Add match quality text
-        cv2.putText(self.search_frame, f"Match: {max_val:.2f}", (50, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        if best_score > 0.7:
+            h, w = template.shape
+            top_left = best_match
+            bottom_right = (top_left[0] + w, top_left[1] + h)
+            center = (top_left[0] + w//2, top_left[1] + h//2)
+            
+            # Draw bounding box and center point
+            cv2.rectangle(self.search_frame, top_left, bottom_right, (0, 255, 0), 2)
+            cv2.circle(self.search_frame, center, 5, (0, 255, 0), -1)
+            
+            # Draw image center crosshair
+            cv2.line(self.search_frame, (self.IMAGE_CENTER[0]-20, self.IMAGE_CENTER[1]), 
+                    (self.IMAGE_CENTER[0]+20, self.IMAGE_CENTER[1]), (0, 0, 255), 2)
+            cv2.line(self.search_frame, (self.IMAGE_CENTER[0], self.IMAGE_CENTER[1]-20), 
+                    (self.IMAGE_CENTER[0], self.IMAGE_CENTER[1]+20), (0, 0, 255), 2)
+            
+            # Add match quality and rotation text
+            cv2.putText(self.search_frame, f"Match: {best_score:.2f}", (50, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.putText(self.search_frame, f"Rotation: {best_angle}°", (50, 70),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-        if max_val > 0.7:
             self.is_component_detected = True
-            return center
+            return (center, best_angle)
         else:
             self.is_component_detected = False
-            return None
+            return (None, None)
 
-
+    def determine_rotation(self, template_path):
+        """
+        Determine the rotation of a component in the camera frame.
+        """
+        #Load template image
+        template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
+        if template is None:    
+            raise ValueError(f"Could not load template image: {template_path}")
+        
+        #Get image dimensions
+        image_height, image_width = self.search_frame.shape[:2]
+        self.IMAGE_CENTER = (image_width // 2, image_height // 2)
+        
+        
 
     def find_tool_position(self):
         """
