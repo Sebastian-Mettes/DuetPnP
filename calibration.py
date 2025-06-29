@@ -364,6 +364,22 @@ class CalibrateToolheads:
         except Exception as e:
             print(f"Unexpected error setting tool offset: {str(e)}")
             raise
+    
+    def linear_move(self, x: float = None, y: float = None, z: float = None):
+        """
+        Move the tool to a specified position.
+        Only moves axes that are provided.
+        """
+        move_cmd = "G0"
+        if x is not None:
+            move_cmd += f" X{x}"
+        if y is not None:
+            move_cmd += f" Y{y}" 
+        if z is not None:
+            move_cmd += f" Z{z}"
+        move_cmd += " F6000"
+        self.send_gcode_command(move_cmd, check=False)
+        time.sleep(1.5)
 
     def calibrate_tool_with_camera(self, toolhead_number, target='tool', camera=0, deselect_tool=True):
         """

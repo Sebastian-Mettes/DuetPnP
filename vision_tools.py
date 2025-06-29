@@ -56,7 +56,7 @@ class VisionTools:
         # Get final camera resolution
         self.width = int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = int(self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        
+        self.is_component_detected = False
         print(f"Camera initialized at {self.width}x{self.height} resolution")
         
         # HSV threshold values
@@ -79,6 +79,15 @@ class VisionTools:
         # Camera settings
         self.brightness = 0
         self.contrast = 0
+
+    
+    def set_fixed_camera_offset(self, x: float, y: float):
+        """
+        Set the fixed camera offset.
+        """
+        self.camera_offset = {'X': x, 'Y': y}
+
+
 
     def set_camera_resolution(self, width: int, height: int) -> bool:
         """
@@ -108,6 +117,46 @@ class VisionTools:
     def get_image_dimensions(self):
         """Get the dimensions of the camera frame."""
         return (self.width, self.height)
+
+    def find_component(self, template_path):
+        """
+        Find a component in the camera frame.
+        """
+        #Load template image
+        self.search_frame = self.frame.copy()
+        template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
+        if template is None:
+            raise ValueError(f"Could not load template image: {template_path}")
+        
+        image_height, image_width = self.search_frame.shape[:2]
+        self.IMAGE_CENTER = (image_width // 2, image_height // 2)
+        gray = cv2.cvtColor(self.search_frame, cv2.COLOR_BGR2GRAY)
+        result = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+        h, w = template.shape
+        top_left = max_loc
+        bottom_right = (top_left[0] + w, top_left[1] + h)
+        center = (top_left[0] + w//2, top_left[1] + h//2)
+        
+        cv2.rectangle(self.search_frame, top_left, bottom_right, (0, 255, 0), 2)
+        cv2.circle(self.search_frame, center, 5, (0, 255, 0), -1)
+        
+        # Draw image center crosshair
+        cv2.line(self.search_frame, (IMAGE_CENTER[0]-20, IMAGE_CENTER[1]), (IMAGE_CENTER[0]+20, IMAGE_CENTER[1]), (0, 0, 255), 2)
+        cv2.line(self.search_frame, (IMAGE_CENTER[0], IMAGE_CENTER[1]-20), (IMAGE_CENTER[0], IMAGE_CENTER[1]+20), (0, 0, 255), 2)
+        
+        # Add match quality text
+        cv2.putText(self.search_frame, f"Match: {max_val:.2f}", (50, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+        if max_val > 0.7:
+            self.is_component_detected = True
+            return center
+        else:
+            self.is_component_detected = False
+            return None
+
+
 
     def find_tool_position(self):
         """
@@ -268,13 +317,14 @@ class VisionTools:
             return None
             
         # Clear the buffer by reading a few frames
-        for _ in range(10):  # Read 10 frames to clear buffer
+        for _ in range(3):  # Read 3 frames to clear buffer
             self.camera.read()
             
         ret, frame = self.camera.read()
         if not ret:
             print("Failed to capture frame")
             return None
+        self.frame = frame
         return frame
         
     def apply_hsv_threshold(self, frame: np.ndarray) -> np.ndarray:
