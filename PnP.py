@@ -240,7 +240,8 @@ class PnP:
                     #Push image to display window:  
                     #                   #Find component in image:
                     center = None
-                    center,rotation = self.camera_lower.find_component(component['lower_template'],angle)
+                    print(f"Angle: {angle}")
+                    center,rotation = self.camera_lower.find_component(component['lower_template'], angle)
                     self.display_image(self.camera_lower.search_frame, "PnP Camera View", "Centering Component") #Display the camera image in the window.
                     self.printer.send_gcode_command("M114")
                     current_pos = self.printer.parse_position(self.printer.response)
@@ -267,6 +268,7 @@ class PnP:
                                 self.printer.send_gcode_command(f"G0 C{rotation + placement['rotation']} F6000")
                                 time.sleep(0.25)
                                 rotated = True
+                                
                                 angle = placement['rotation']
                     
 
