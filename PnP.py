@@ -141,7 +141,7 @@ class PnP:
             time.sleep(3.5) #Sufficient delay for tool change.
 
         #Check if camera is below z = 100
-        if current_pos[2] < 100:
+        if current_pos['Z'] < 100:
             #Move camera to z = 100 
             self.printer.linear_move(z=144) #Manually determined value for z = 150 for camera focus.
         
