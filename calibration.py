@@ -276,6 +276,7 @@ class CalibrateToolheads:
         """
         response = self.send_gcode_command("M409 K\"state.currentTool\"", check=False)
         # Parse the JSON response
+        print(f"Response: {response}")
         try:
             data = json.loads(response)
             return data.get('result', 0)  # Default to tool 0 if not found
@@ -725,8 +726,6 @@ class CalibrateToolheads:
 if __name__ == "__main__":
     Printer = CalibrateToolheads()
     try:
-        #    Printer.home()
-        #    Printer.calibrate_with_camera(0)
         Printer.calibrate_tool_with_camera(0,camera = 0)
         Printer.calibrate_tool_with_camera(1,camera = 0)
         Printer.calibrate_tool_with_camera(2,camera = 0)
