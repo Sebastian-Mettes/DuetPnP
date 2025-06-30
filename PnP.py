@@ -163,7 +163,7 @@ class PnP:
 
                 while not self.camera_upper.is_component_detected:
                     self.display_image(self.camera_upper.capture_frame(), "PnP Camera View", "Looking for component") #Display the camera image in the window.
-
+                    self.camera_upper.find_component(component['upper_template'])
                 #While component is detected, continuously update the display window with the camera image. Centeer component in image, save location:
                 centered = False
                 while centered == False:
