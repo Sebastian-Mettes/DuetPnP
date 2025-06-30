@@ -269,13 +269,14 @@ class PnP:
                                 time.sleep(0.25)
                                 rotated = True
                                 
-                                angle = placement['rotation']
+                                angle = -placement['rotation']
                     
 
 
 
 
-                
+                #Turn off lower camera ring light
+                self.printer.send_gcode_command("M106 P4 S0")  # Turn off lower camera ring light (Fan 4)
                 #Move to placement location (X,Y):
                 self.printer.linear_move(x=placement['x']+offset_x, y=placement['y']+offset_y)
                 #Move to Z height for placement:
@@ -294,19 +295,16 @@ class PnP:
 
                 #Now use T3 (camera) to verify placement by taking a photo and saving it in a folder (/verification_photos)
                 self.printer.send_gcode_command('T3')
-                time.sleep(3.5)
 
                 #Turn on camera ring light:
                 self.printer.send_gcode_command("M106 P3 S255")  # Turn on upper camera ring light (Fan 3)
 
                 #Move to placement location (X,Y):
-                self.printer.linear_move(x=placement['x']+offset_x, y=placement['y']+offset_y)
-                time.sleep(1.5)
+                self.printer.linear_move(x=placement['x']+offset_x, y=placement['y']+offset_y, z=component['focus_location']['z'])
 
                 #Take photo:
                 self.camera_upper.capture_frame()
                 self.display_image(self.camera_upper.search_frame, "PnP Camera View", "Verifying Placement")
-                cv2.imwrite(f"verification_photos/{component['type']}_{placement['x']}_{placement['y']}_{placement['z']}.png", self.camera_upper.search_frame)
 
                     #Press C to continue to next component: 
                 while True:
@@ -315,6 +313,7 @@ class PnP:
                     if key == ord('c'):
                         break
 
+                cv2.imwrite(f"verification_photos/{component['type']}_{placement['x']}_{placement['y']}_{placement['z']}.png", self.camera_upper.search_frame)
 
 
 
