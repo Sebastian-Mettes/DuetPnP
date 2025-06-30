@@ -146,7 +146,7 @@ class PnP:
             self.printer.linear_move(z=144) #Manually determined value for z = 150 for camera focus.
         
         #Move to new position
-        self.printer.linear_move(x=x, y=y, z=z)
+        self.printer.linear_move(x,y,z)
 
 
 

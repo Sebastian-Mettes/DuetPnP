@@ -8,7 +8,7 @@
             "reel_location": {
                 "x": -67.8,
                 "y": 230.1,
-                "z": 144.0
+                "z": -8.0
             },
             "reel_focus": 144,
             "placements": [
@@ -40,7 +40,7 @@
             "reel_location": {
                 "x": -57.8,
                 "y": 230.1,
-                "z": 144.0
+                "z": -8.0
             },
             "reel_focus": 144,
             "placements": [
@@ -72,7 +72,7 @@
             "reel_location": {
                 "x": -47.8,
                 "y": 230.1,
-                "z": 144.0
+                "z": -8.0
             },
             "reel_focus": 144,
             "placements": [
