@@ -269,7 +269,7 @@ class PnP:
                                 time.sleep(0.25)
                                 rotated = True
                                 
-                                angle = -(rotation+placement['rotation'])
+                                angle = (rotation+placement['rotation'])
                     
 
 
