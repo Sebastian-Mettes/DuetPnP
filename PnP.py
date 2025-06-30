@@ -281,7 +281,7 @@ class PnP:
                 self.printer.linear_move(x=placement['x']+offset_x, y=placement['y']+offset_y)
                 #Move to Z height for placement:
                 self.printer.linear_move(z=placement['z'])
-                time.sleep(3.5)
+                time.sleep(4.5)
                 
             
                 #Turn off solenoid:
@@ -300,7 +300,7 @@ class PnP:
                 self.printer.send_gcode_command("M106 P3 S255")  # Turn on upper camera ring light (Fan 3)
 
                 #Move to placement location (X,Y):
-                self.printer.linear_move(x=placement['x']+offset_x, y=placement['y']+offset_y, z=component['focus_location']['z'])
+                self.printer.linear_move(x=placement['x']+offset_x, y=placement['y']+offset_y, z=component['reel_focus'])
 
                 #Take photo:
                 self.camera_upper.capture_frame()
