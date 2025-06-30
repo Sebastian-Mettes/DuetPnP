@@ -173,7 +173,7 @@ class VisionTools:
                 best_angle = angle
                 best_template_shape = rotated.shape
         
-        if best_score > 0.7:
+        if best_score > 0.8:
             # Use the actual rotated template dimensions
             h, w = best_template_shape
             top_left = best_match
