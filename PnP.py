@@ -205,13 +205,13 @@ class PnP:
                 self.printer.linear_move(x=pickup_location['x'], y=pickup_location['y'])
                 
                  #Turn on vacuum: 
-                self.printer.send_gcode_command(f"M106 P{self.config['vacuum_pin'][3]} S40") #Turn on vacuum
+                self.printer.send_gcode_command(f"M106 P{self.config['vacuum_pin'][3]} S80") #Turn on vacuum
                 
                 #Move to Z height for pickup:
                 self.printer.linear_move(z=component['reel_location']['z'])
                 time.sleep(0.5)  
                                 #Open solenoid:
-                self.printer.send_gcode_command(f"M106 P{self.config['solenoid_pin'][3]} S6") #Turn on solenoid, value 6 to ensure low current as needed.
+                self.printer.send_gcode_command(f"M106 P{self.config['solenoid_pin'][3]} S15") #Turn on solenoid, value 6 to ensure low current as needed.
                 time.sleep(0.5)
 
                 #Move back to Z height of 150:
@@ -240,16 +240,16 @@ class PnP:
                             x_offset = self.camera_lower.IMAGE_CENTER[0] - center[0] #pixel offset from center
                             y_offset = self.camera_lower.IMAGE_CENTER[1] - center[1]
                             
-                            x_move = -x_offset * self.INITIAL_PIXELS_TO_MM
-                            y_move = y_offset * self.INITIAL_PIXELS_TO_MM
-                            new_x = current_pos['X'] + x_move - self.camera_lower.CAMERA_OFFSET[0]
-                            new_y = current_pos['Y'] + y_move - self.camera_lower.CAMERA_OFFSET[1]
+                            x_move = -y_offset * self.INITIAL_PIXELS_TO_MM
+                            y_move = x_offset * self.INITIAL_PIXELS_TO_MM
+                            new_x = current_pos['X'] + x_move
+                            new_y = current_pos['Y'] + y_move 
                             self.printer.send_gcode_command(f"G0 X{new_x:.3f} Y{new_y:.3f} F6000")
                             time.sleep(0.25)
 
                         else:                            
-                            offset_x = current_pos['X'] - self.camera_lower.CAMERA_OFFSET[0] - self.printer.camera_location[0]
-                            offset_y = current_pos['Y'] - self.camera_lower.CAMERA_OFFSET[1] - self.printer.camera_location[1]
+                            offset_x = current_pos['X']  - self.printer.camera_location[0]
+                            offset_y = current_pos['Y']  - self.printer.camera_location[1]
                             if rotated is True:
                                 centered = True
                                 oriented = True
