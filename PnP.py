@@ -177,8 +177,8 @@ class PnP:
                         if abs(center[0] - self.camera_upper.IMAGE_CENTER[0]) <= 2 and abs(center[1] - self.camera_upper.IMAGE_CENTER[1]) <= 2:
                             centered = True
                             self.display_image(self.camera_upper.search_frame, "PnP Camera View", "Component Centered")
-                            new_x = current_pos['X'] - self.camera_upper.CAMERA_OFFSET[0]
-                            new_y = current_pos['Y'] - self.camera_upper.CAMERA_OFFSET[1]
+                            new_x = current_pos['X'] 
+                            new_y = current_pos['Y']
 
 
                         else:
@@ -187,14 +187,14 @@ class PnP:
                             
                             x_move = -x_offset * self.INITIAL_PIXELS_TO_MM
                             y_move = y_offset * self.INITIAL_PIXELS_TO_MM
-                            new_x = current_pos['X'] + x_move - self.camera_upper.CAMERA_OFFSET[0]
-                            new_y = current_pos['Y'] + y_move - self.camera_upper.CAMERA_OFFSET[1]
+                            new_x = current_pos['X'] + x_move 
+                            new_y = current_pos['Y'] + y_move 
                             self.printer.send_gcode_command(f"G0 X{new_x:.3f} Y{new_y:.3f} F6000")
                             time.sleep(0.5)
                     
                         #Save the pickup location:
-                        pickup_location['x'] = new_x
-                        pickup_location['y'] = new_y
+                        pickup_location['x'] = new_x - self.camera_upper.CAMERA_OFFSET[0]
+                        pickup_location['y'] = new_y - self.camera_upper.CAMERA_OFFSET[1]
                     else:
                         print("Component lost")
                 
