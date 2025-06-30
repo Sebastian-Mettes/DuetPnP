@@ -124,7 +124,7 @@ class VisionTools:
         """Get the dimensions of the camera frame."""
         return (self.width, self.height)
 
-    def find_component(self, template_path):
+    def find_component(self, template_path, angle = 0):
         """
         Find a component in the camera frame and determine its rotation.
         
@@ -150,7 +150,7 @@ class VisionTools:
         best_angle = 0
         
         # Try different rotations
-        for angle in range(-30, 30, 5):  # 5-degree steps
+        for angle in range(-30+angle, 30+angle, 5):  # 5-degree steps
             # Rotate template
             matrix = cv2.getRotationMatrix2D(
                 (template.shape[1]/2, template.shape[0]/2), 
