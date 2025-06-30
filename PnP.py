@@ -193,8 +193,15 @@ class PnP:
                             time.sleep(0.5)
                     
                         #Save the pickup location:
-                        pickup_location['x'] = new_x - self.camera_upper.CAMERA_OFFSET[0]
-                        pickup_location['y'] = new_y - self.camera_upper.CAMERA_OFFSET[1]
+                        try:
+                            with open('camera_offset.json', 'r') as f:
+                                camera_offset = json.load(f)
+                            print(f"Loaded camera offset: X={camera_offset['X']:.3f}, Y={camera_offset['Y']:.3f}, Z={camera_offset['Z']:.3f}")
+                        except (FileNotFoundError, json.JSONDecodeError) as e:
+                            print(f"Warning: Could not load camera offset: {str(e)}, please run calibration.py.")
+                            camera_offset = {'X': 0, 'Y': 0, 'Z': 0}
+                        pickup_location['x'] = new_x - camera_offset['X'] - self.camera_upper.CAMERA_OFFSET[0]
+                        pickup_location['y'] = new_y - camera_offset['Y'] - self.camera_upper.CAMERA_OFFSET[1]
                     else:
                         print("Component lost")
                 
@@ -299,6 +306,7 @@ class PnP:
                     #Press C to continue to next component: 
                 while True:
                     key = cv2.waitKey(1) & 0xFF
+                    self.display_image(self.camera_upper.capture_frame(), "PnP Camera View", "Press C to continue to next component")
                     if key == ord('c'):
                         break
 
