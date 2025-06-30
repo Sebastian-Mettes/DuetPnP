@@ -274,11 +274,11 @@ class CalibrateToolheads:
         """
         Get the current toolhead number using Duet3 object model.
         """
-        response = self.send_gcode_command("M409 K\"state.currentTool\"", check=False)
+        self.send_gcode_command("M409 K\"state.currentTool\"", check=False)
         # Parse the JSON response
-        print(f"Response: {response}")
+
         try:
-            data = json.loads(response)
+            data = json.loads(self.response)
             return data.get('result', 0)  # Default to tool 0 if not found
         except json.JSONDecodeError:
             return 0
