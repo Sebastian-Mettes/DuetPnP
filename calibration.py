@@ -381,6 +381,7 @@ class CalibrateToolheads:
         Move the tool to a specified position.
         Only moves axes that are provided.
         """
+        self.send_gcode_command("G90", check=False)
         move_cmd = "G0"
         if x is not None:
             move_cmd += f" X{x}"
