@@ -265,11 +265,11 @@ class PnP:
                                 oriented = True
                             else:
                                 #send command which will rotate component to desired rotation:
-                                self.printer.send_gcode_command(f"G0 C{rotation + placement['rotation']} F6000")
+                                self.printer.send_gcode_command(f"G0 C{-rotation + placement['rotation']} F6000")
                                 time.sleep(0.25)
                                 rotated = True
                                 
-                                angle = (rotation+placement['rotation'])
+                                angle = (-rotation+placement['rotation'])
                     
 
 
