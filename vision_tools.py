@@ -372,7 +372,7 @@ class VisionTools:
             return None
             
         # Clear the buffer by reading a few frames
-        for _ in range(3):  # Read 3 frames to clear buffer
+        for _ in range(10):  # Read 3 frames to clear buffer
             self.camera.read()
             
         ret, frame = self.camera.read()
