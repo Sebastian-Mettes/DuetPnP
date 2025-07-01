@@ -281,7 +281,7 @@ class PnP:
                 #Turn off lower camera ring light
                 self.printer.send_gcode_command("M106 P4 S0")  # Turn off lower camera ring light (Fan 4)
                 #Move to placement location (X,Y):
-                self.printer.send_gcode_command(f"G0 X{placement['x']+offset_x} Y{placement['y']+offset_y} F6000")
+                self.send_gcode_and_wait(f"G0 X{placement['x']+offset_x} Y{placement['y']+offset_y} F6000")
                 #Move to Z height for placement:
                 self.send_gcode_and_wait(f"G0 Z{placement['z']} F1200")
                 
