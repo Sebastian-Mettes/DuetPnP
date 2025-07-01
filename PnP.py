@@ -271,7 +271,6 @@ class PnP:
                                 self.printer.send_gcode_command(f"G91")#relative mode
                                 self.printer.send_gcode_command(f"G0 C{rotation + placement['rotation']} F6000")
                                 self.printer.send_gcode_command(f"G90")#absolute mode
-                                time.sleep(1)
                                 rotated = True
                                 
                                 angle = (90)
@@ -286,7 +285,9 @@ class PnP:
                 self.printer.linear_move(x=placement['x']+offset_x, y=placement['y']+offset_y)
                 #Move to Z height for placement:
                 self.printer.linear_move(z=placement['z'])
-                time.sleep(4.5)
+                
+                
+                time.sleep(5.5)
                 
             
                 #Turn off solenoid:
