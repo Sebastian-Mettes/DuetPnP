@@ -281,12 +281,12 @@ class PnP:
                 #Turn off lower camera ring light
                 self.printer.send_gcode_command("M106 P4 S0")  # Turn off lower camera ring light (Fan 4)
                 #Move to placement location (X,Y):
-                self.send_gcode_and_wait(f"G0 X{placement['x']+offset_x} Y{placement['y']+offset_y} F6000")
+                self.printer.send_gcode_command(f"G0 X{placement['x']+offset_x} Y{placement['y']+offset_y} F6000")
                 #Move to Z height for placement:
                 self.send_gcode_and_wait(f"G0 Z{placement['z']} F1200")
                 
                 #Wait for placement to complete
-                time.sleep(5.5)  # Keep this for component settling time
+                  # Keep this for component settling time
                 
                 #Turn off solenoid:
                 self.send_gcode_and_wait(f"M106 P{self.config['solenoid_pin'][3]} S0") #Turn off solenoid
@@ -320,7 +320,7 @@ class PnP:
 
                 cv2.imwrite(f"verification_photos/{component['type']}_{placement['x']}_{placement['y']}_{placement['z']}.png", self.camera_upper.search_frame)
 
-    def wait_for_printer_idle(self, timeout=30):
+    def wait_for_printer_idle(self, timeout=10):
         """
         Wait for the printer to become idle (finish current command).
         
@@ -340,7 +340,7 @@ class PnP:
             time.sleep(0.1)
         return False
 
-    def send_gcode_and_wait(self, gcode_command, check=True, timeout=30):
+    def send_gcode_and_wait(self, gcode_command, check=True, timeout=10):
         """
         Send a G-code command and wait for it to complete.
         
