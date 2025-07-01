@@ -148,17 +148,19 @@ class VisionTools:
         best_match = None
         best_score = -1
         best_angle = 0
+        best_template_shape = None
         
         # Try different rotations
-        for angle in range(-30+angle, 30+angle, 5):  # 5-degree steps
+        for angle in range(-30-angle, 30+angle, 5):  # 5-degree steps
             # Rotate template
             matrix = cv2.getRotationMatrix2D(
                 (template.shape[1]/2, template.shape[0]/2), 
                 angle, 1.0
             )
+            # Let OpenCV automatically calculate the size needed to contain the entire rotated image
             rotated = cv2.warpAffine(
                 template, matrix, 
-                (template.shape[1], template.shape[0])
+                None  # This allows OpenCV to determine the required output size
             )
             
             # Template matching
@@ -169,9 +171,11 @@ class VisionTools:
                 best_score = max_val
                 best_match = max_loc
                 best_angle = angle
+                best_template_shape = rotated.shape
         
-        if best_score > 0.55:
-            h, w = template.shape
+        if best_score > 0.6:
+            # Use the actual rotated template dimensions
+            h, w = best_template_shape
             top_left = best_match
             bottom_right = (top_left[0] + w, top_left[1] + h)
             center = (top_left[0] + w//2, top_left[1] + h//2)
