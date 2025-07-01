@@ -270,7 +270,7 @@ class PnP:
                                 time.sleep(0.25)
                                 rotated = True
                                 
-                                angle = (60)
+                                angle = (90)
                     
 
 
