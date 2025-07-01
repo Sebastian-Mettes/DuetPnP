@@ -3,7 +3,7 @@
         {
             "type": "resistor",
             "upper_template": "res_above.png",
-            "lower_template": "resistor_below.png",
+            "lower_template": "res_below.png",
             "feed_number": 1,
             "reel_location": {
                 "x": -57.8,

@@ -264,12 +264,7 @@ class PnP:
                                 centered = True
                                 oriented = True
                             else:
-                                print("Component centered. Press C to continue with rotation.")
-                                while True:
-                                    key = cv2.waitKey(1) & 0xFF
-                                    self.display_image(self.camera_lower.capture_frame(), "PnP Camera View", "Press C to continue with rotation")
-                                    if key == ord('c'):
-                                        break
+
                                 #send command which will rotate component to desired rotation:
                                 self.printer.send_gcode_command(f"G0 C{-rotation + placement['rotation']} F6000")
                                 time.sleep(0.25)
