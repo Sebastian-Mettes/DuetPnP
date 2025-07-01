@@ -268,7 +268,9 @@ class PnP:
 
                                 #send command which will rotate component to desired rotation:
                                 print(f"Rotation Amount: {rotation + placement['rotation']}")
+                                self.printer.send_gcode_command(f"G91")#relative mode
                                 self.printer.send_gcode_command(f"G0 C{rotation + placement['rotation']} F6000")
+                                self.printer.send_gcode_command(f"G90")#absolute mode
                                 time.sleep(1)
                                 rotated = True
                                 
