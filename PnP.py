@@ -277,7 +277,7 @@ class PnP:
                                 angle = (90)
                     
 
-
+                self.feeder.feed(component['feed_number'])
 
 
                 #Turn off lower camera ring light

@@ -26,8 +26,9 @@ class Feeder:
         # Slowly rotate until stall
         print("Rotating feeder until stall...")
         cal.send_gcode_command("G91")
-        cal.send_gcode_command("G1 B0 F900")  # Rotate B axis 120 degrees at 900mm/min
-        
+        cal.send_gcode_command("G1 B120 F900")  # Rotate B axis 120 degrees at 900mm/min
+        cal.send_gcode_command("G0 B-5 F900") # Move B axis 5 degrees back after stall to put in correct feeding position for centered parts. Manually determined value.
+        cal.send_gcode_command("G90")# Absolute mode
         print("\nPress 'c' to test feed at current position")
         print("Then enter belt number (0-{}) that successfully fed".format(self.num_belts-1))
         print("(Counting 0,1,2,etc from left to right)")
@@ -42,8 +43,8 @@ class Feeder:
                 cal.send_gcode_command(f"G1 B-{theta} F60000")
                 
                 # Move forward again by theta degrees
-                cal.send_gcode_command(f"G1 B{theta} F600")
-                
+                cal.send_gcode_command(f"G1 B{theta} F400")
+                cal.send_gcode_command(f"G90") #absolute mode
                 print("\nPress 'c' to test feed again, or enter belt number (0-{}) that fed".format(self.num_belts-1))
             
             else:
@@ -94,6 +95,7 @@ class Feeder:
             if rotation != 0:
                 cal.send_gcode_command("G91")
                 cal.send_gcode_command(f"G1 B{rotation} F900")
+                cal.send_gcode_command(f"G90") #absolute mode
         else:
             # Homed - normal belt-based movement
             if not 0 <= belt < self.num_belts:
@@ -113,7 +115,8 @@ class Feeder:
             if belt_diff != 0:
                 # Execute rotation
                 cal.send_gcode_command("G91")
-                cal.send_gcode_command(f"G1 B{rotation} F900")
+                cal.send_gcode_command(f"G1 B{rotation} F6000")
+                cal.send_gcode_command(f"G90") #absolute mode
                 time.sleep(4)
                 self.belt = belt
             
@@ -124,8 +127,8 @@ class Feeder:
         cal.send_gcode_command("G91")
         cal.send_gcode_command(f"G1 B-{theta} F60000")  # Back up quickly
         time.sleep(1)
-        cal.send_gcode_command(f"G1 B{theta} F600")    # Feed forward slowly
-
+        cal.send_gcode_command(f"G1 B{theta} F400")    # Feed forward slowly
+        cal.send_gcode_command(f"G90") #absolute mode
         cal.close()
 
 
