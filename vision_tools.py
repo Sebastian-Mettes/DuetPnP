@@ -170,7 +170,7 @@ class VisionTools:
                 best_match = max_loc
                 best_angle = angle
         
-        if best_score > 0.6:
+        if best_score > 0.55:
             h, w = template.shape
             top_left = best_match
             bottom_right = (top_left[0] + w, top_left[1] + h)
