@@ -281,32 +281,31 @@ class PnP:
                 #Turn off lower camera ring light
                 self.printer.send_gcode_command("M106 P4 S0")  # Turn off lower camera ring light (Fan 4)
                 #Move to placement location (X,Y):
-                self.printer.linear_move(x=placement['x']+offset_x, y=placement['y']+offset_y)
+                self.send_gcode_and_wait(f"G0 X{placement['x']+offset_x} Y{placement['y']+offset_y} F6000")
                 #Move to Z height for placement:
-                self.printer.linear_move(z=placement['z'])
+                self.send_gcode_and_wait(f"G0 Z{placement['z']} F1200")
                 
-                #Wait for placement to complete with timer
-                start_time = time.time()
-                while time.time() - start_time < 5.5:
-                    time.sleep(0.01)  # Small sleep to prevent busy waiting
+                #Wait for placement to complete
+                time.sleep(5.5)  # Keep this for component settling time
                 
                 #Turn off solenoid:
-                self.printer.send_gcode_command(f"M106 P{self.config['solenoid_pin'][3]} S0") #Turn off solenoid
+                self.send_gcode_and_wait(f"M106 P{self.config['solenoid_pin'][3]} S0") #Turn off solenoid
                 
 
                 #Move back to Z 150:
-                self.printer.linear_move(z=150)
+                self.send_gcode_and_wait("G0 Z150 F6000")
                 #Turn off vacuum:
-                self.printer.send_gcode_command(f"M106 P{self.config['vacuum_pin'][3]} S0") #Turn off vacuum
+                self.send_gcode_and_wait(f"M106 P{self.config['vacuum_pin'][3]} S0") #Turn off vacuum
 
                 #Now use T3 (camera) to verify placement by taking a photo and saving it in a folder (/verification_photos)
-                self.printer.send_gcode_command('T3')
+                self.send_gcode_and_wait('T3')
 
                 #Turn on camera ring light:
-                self.printer.send_gcode_command("M106 P3 S255")  # Turn on upper camera ring light (Fan 3)
+                self.send_gcode_and_wait("M106 P3 S255")  # Turn on upper camera ring light (Fan 3)
 
                 #Move to placement location (X,Y):
-                self.printer.linear_move(x=placement['x']+offset_x, y=placement['y']+offset_y, z=component['reel_focus'])
+                self.send_gcode_and_wait(f"G0 X{placement['x']+offset_x} Y{placement['y']+offset_y} F6000")
+                self.send_gcode_and_wait(f"G0 Z{component['reel_focus']} F6000")
 
                 #Take photo:
                 self.camera_upper.capture_frame()
@@ -320,6 +319,41 @@ class PnP:
                         break
 
                 cv2.imwrite(f"verification_photos/{component['type']}_{placement['x']}_{placement['y']}_{placement['z']}.png", self.camera_upper.search_frame)
+
+    def wait_for_printer_idle(self, timeout=30):
+        """
+        Wait for the printer to become idle (finish current command).
+        
+        Args:
+            timeout (float): Maximum time to wait in seconds
+            
+        Returns:
+            bool: True if printer became idle, False if timeout
+        """
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            # Send M400 to wait for all moves to complete
+            self.printer.send_gcode_command("M400", check=False)
+            # Check if printer is idle by looking for "ok" response
+            if "ok" in self.printer.response.lower():
+                return True
+            time.sleep(0.1)
+        return False
+
+    def send_gcode_and_wait(self, gcode_command, check=True, timeout=30):
+        """
+        Send a G-code command and wait for it to complete.
+        
+        Args:
+            gcode_command (str): The G-code command to send
+            check (bool): Whether to validate the command
+            timeout (float): Maximum time to wait in seconds
+            
+        Returns:
+            bool: True if command completed successfully
+        """
+        self.printer.send_gcode_command(gcode_command, check=check)
+        return self.wait_for_printer_idle(timeout)
 
 
 
