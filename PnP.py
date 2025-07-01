@@ -284,20 +284,15 @@ class PnP:
                 self.printer.linear_move(x=placement['x']+offset_x, y=placement['y']+offset_y)
                 #Move to Z height for placement:
                 self.printer.linear_move(z=placement['z'])
-                time.sleep(0.5)
-
-                #Turn off vacuum:
-                self.printer.send_gcode_command(f"M106 P{self.config['vacuum_pin'][3]} S0") #Turn off vacuum
-
+                
+                #Wait for placement to complete with timer
+                start_time = time.time()
+                while time.time() - start_time < 5.5:
+                    time.sleep(0.01)  # Small sleep to prevent busy waiting
+                
                 #Turn off solenoid:
                 self.printer.send_gcode_command(f"M106 P{self.config['solenoid_pin'][3]} S0") #Turn off solenoid
-
-                time.sleep(5)
                 
-                
-                
-                
-
 
                 #Move back to Z 150:
                 self.printer.linear_move(z=150)
