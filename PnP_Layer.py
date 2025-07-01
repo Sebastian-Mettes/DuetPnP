@@ -525,8 +525,7 @@ class PnPLayer:
                         self.printer.send_gcode_command(
                             f"G0 X{camera_pos[0]} Y{camera_pos[1]} Z{camera_pos[2]} F6000"
                         )
-                        time.sleep(2.5)
-                        
+                        time.sleep(2.5)                        
                         # Check alignment
                         alignment = self.check_component_alignment()
                         # Note: Removed second rotation check to avoid issues

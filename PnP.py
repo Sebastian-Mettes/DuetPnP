@@ -206,7 +206,6 @@ class PnP:
                         print("Component lost")
                 
                 self.printer.send_gcode_command('T2')#Switch to PnP Tool.
-                time.sleep(3.5) #Sufficient delay for tool change.
 
                 #Move to placement XY location:
                 self.printer.linear_move(x=pickup_location['x'], y=pickup_location['y'])
@@ -285,16 +284,19 @@ class PnP:
                 self.printer.linear_move(x=placement['x']+offset_x, y=placement['y']+offset_y)
                 #Move to Z height for placement:
                 self.printer.linear_move(z=placement['z'])
+
+
                 
                 
-                time.sleep(5.5)
+                
                 
             
                 #Turn off solenoid:
-                self.printer.send_gcode_command(f"M106 P{self.config['solenoid_pin'][3]} S0") #Turn off solenoid
                 
 
                 #Move back to Z 150:
+                self.printer.send_gcode_command(f"M106 P{self.config['solenoid_pin'][3]} S0") #Turn off solenoid
+
                 self.printer.linear_move(z=150)
                 #Turn off vacuum:
                 self.printer.send_gcode_command(f"M106 P{self.config['vacuum_pin'][3]} S0") #Turn off vacuum

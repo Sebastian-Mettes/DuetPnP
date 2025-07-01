@@ -391,7 +391,7 @@ class CalibrateToolheads:
             move_cmd += f" Z{z}"
         move_cmd += " F6000"
         self.send_gcode_command(move_cmd, check=False)
-        time.sleep(1.5)
+
 
     def calibrate_tool_with_camera(self, toolhead_number, target='tool', camera=0, deselect_tool=True):
         """
