@@ -1,26 +1,6 @@
 {
     "components": [
         {
-            "type": "resistor",
-            "upper_template": "res_above.png",
-            "lower_template": "res_below.png",
-            "feed_number": 1,
-            "reel_location": {
-                "x": -57.8,
-                "y": 230.1,
-                "z": -8.0
-            },
-            "reel_focus": 144,
-            "placements": [
-                {
-                    "x": 123.935,
-                    "y": 127.37,
-                    "z": 0.75,
-                    "rotation": -120
-                }
-            ]
-        },
-        {
             "type": "led",
             "upper_template": "led_above.png",
             "lower_template": "led_below.png",
@@ -81,6 +61,26 @@
                     "y": 129.05,
                     "z": 0.75,
                     "rotation": -30
+                }
+            ]
+        },
+        {
+            "type": "resistor",
+            "upper_template": "res_above.png",
+            "lower_template": "res_below.png",
+            "feed_number": 1,
+            "reel_location": {
+                "x": -57.8,
+                "y": 230.1,
+                "z": -8.0
+            },
+            "reel_focus": 144,
+            "placements": [
+                {
+                    "x": 123.935,
+                    "y": 127.37,
+                    "z": 0.75,
+                    "rotation": -120
                 }
             ]
         }
