@@ -312,12 +312,13 @@ class PnP:
                 self.camera_upper.capture_frame()
                 self.display_image(self.camera_upper.search_frame, "PnP Camera View", "Verifying Placement")
 
-                    #Press C to continue to next component: 
+                #Press C to continue to next component: 
+                input("Press Enter and type 'c' to continue to next component: ")
                 while True:
-                    key = cv2.waitKey(1) & 0xFF
-                    self.display_image(self.camera_upper.capture_frame(), "PnP Camera View", "Press C to continue to next component")
-                    if key == ord('c'):
+                    user_input = input().strip().lower()
+                    if user_input == 'c':
                         break
+                    print("Please type 'c' to continue")
 
                 cv2.imwrite(f"verification_photos/{component['type']}_{placement['x']}_{placement['y']}_{placement['z']}.png", self.camera_upper.search_frame)
 
