@@ -283,25 +283,26 @@ class PnP:
                 #Move to placement location (X,Y):
                 self.send_gcode_and_wait(f"G0 X{placement['x']+offset_x} Y{placement['y']+offset_y} F6000")
                 #Move to Z height for placement:
-                self.send_gcode_and_wait(f"G0 Z{placement['z']} F1200")
+                self.printer.send_gcode_command('G0 Z50')#relative mode
+                self.send_gcode_and_wait(f"G0 Z{placement['z']} F6000")
                 
                 #Wait for placement to complete
                   # Keep this for component settling time
                 
                 #Turn off solenoid:
-                self.send_gcode_and_wait(f"M106 P{self.config['solenoid_pin'][3]} S0") #Turn off solenoid
+                self.printer.send_gcode_command(f"M106 P{self.config['solenoid_pin'][3]} S0") #Turn off solenoid
                 
 
                 #Move back to Z 150:
-                self.send_gcode_and_wait("G0 Z150 F6000")
+                self.printer.send_gcode_command("G0 Z150 F6000")
                 #Turn off vacuum:
-                self.send_gcode_and_wait(f"M106 P{self.config['vacuum_pin'][3]} S0") #Turn off vacuum
+                self.printer.send_gcode_command(f"M106 P{self.config['vacuum_pin'][3]} S0") #Turn off vacuum
 
                 #Now use T3 (camera) to verify placement by taking a photo and saving it in a folder (/verification_photos)
-                self.send_gcode_and_wait('T3')
+                self.printer.send_gcode_command('T3')
 
                 #Turn on camera ring light:
-                self.send_gcode_and_wait("M106 P3 S255")  # Turn on upper camera ring light (Fan 3)
+                self.printer.send_gcode_command("M106 P3 S255")  # Turn on upper camera ring light (Fan 3)
 
                 #Move to placement location (X,Y):
                 self.send_gcode_and_wait(f"G0 X{placement['x']+offset_x} Y{placement['y']+offset_y} F6000")

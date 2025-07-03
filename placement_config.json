@@ -1,6 +1,5 @@
 {
     "components": [
-        
         {
             "type": "sensor",
             "upper_template": "sensor_above.png",
@@ -13,18 +12,55 @@
             },
             "reel_focus": 144,
             "placements": [
-                
                 {
-                    "x": 121.0,
-                    "y": 90.95,
-                    "z": 0.75,
-                    "rotation": 210
+                    "x": 140.0,
+                    "y": 110.0,
+                    "z": 0.8,
+                    "rotation": -90
                 },
                 {
-                    "x": 121.0,
-                    "y": 129.05,
-                    "z": 0.75,
-                    "rotation": -30
+                    "x": 95.0,
+                    "y": 135.9808,
+                    "z": 0.8,
+                    "rotation": 30
+                },
+                {
+                    "x": 95.0,
+                    "y": 84.0192,
+                    "z": 0.8,
+                    "rotation": 150
+                }
+            ]
+        },
+        {
+            "type": "LED",
+            "upper_template": "led_above.png",
+            "lower_template": "led_below.png",
+            "feed_number": 3,
+            "reel_location": {
+                "x": -67.8,
+                "y": 230.1,
+                "z": -8.0
+            },
+            "reel_focus": 144,
+            "placements": [
+                {
+                    "x": 140.0,
+                    "y": 107.02,
+                    "z": 0.8,
+                    "rotation": 180
+                },
+                {
+                    "x": 97.5808,
+                    "y": 137.4708,
+                    "z": 0.8,
+                    "rotation": -60
+                },
+                {
+                    "x": 92.4192,
+                    "y": 85.5092,
+                    "z": 0.8,
+                    "rotation": 60
                 }
             ]
         },
@@ -41,9 +77,21 @@
             "reel_focus": 144,
             "placements": [
                 {
-                    "x": 123.935,
-                    "y": 127.37,
-                    "z": 0.75,
+                    "x": 143.2,
+                    "y": 107.02,
+                    "z": 0.65,
+                    "rotation": 0
+                },
+                {
+                    "x": 95.9808,
+                    "y": 140.242,
+                    "z": 0.65,
+                    "rotation": 120
+                },
+                {
+                    "x": 90.8192,
+                    "y": 82.738,
+                    "z": 0.65,
                     "rotation": -120
                 }
             ]
