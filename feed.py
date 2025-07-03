@@ -89,7 +89,7 @@ class Feeder:
                 print("Warning: Feeder has not been homed - feeding at current position")
                 rotation = 0
             else:
-                raise ValueError(f"belt must be between 0 and {self.num_belts-1}, or 1/2 for relative moves when not homed")
+                print(f"1 belt must be between 0 and {self.num_belts-1}, or 1/2 for relative moves when not homed")
             
             # Execute rotation if needed
             if rotation != 0:
@@ -99,7 +99,7 @@ class Feeder:
         else:
             # Homed - normal belt-based movement
             if not 0 <= belt < self.num_belts:
-                raise ValueError(f"belt must be between 0 and {self.num_belts-1}")
+                print(f"2 belt must be between 0 and {self.num_belts-1}")
                 
             belt_diff = abs(belt - self.belt)
             
