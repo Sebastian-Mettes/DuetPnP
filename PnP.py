@@ -314,13 +314,10 @@ class PnP:
 
                 #Press C to continue to next component: 
                 input("Press Enter and type 'c' to continue to next component: ")
-                while True:
-                    user_input = input().strip().lower()
-                    if user_input == 'c':
-                        break
-                    print("Please type 'c' to continue")
+                user_input = input().strip().lower()
 
-                cv2.imwrite(f"verification_photos/{component['type']}_{placement['x']}_{placement['y']}_{placement['z']}.png", self.camera_upper.search_frame)
+
+                #cv2.imwrite(f"verification_photos/{component['type']}_{placement['x']}_{placement['y']}_{placement['z']}.png", self.camera_upper.search_frame)
 
     def wait_for_printer_idle(self, timeout=10):
         """
