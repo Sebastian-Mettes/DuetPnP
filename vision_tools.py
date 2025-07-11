@@ -151,7 +151,7 @@ class VisionTools:
         best_template_shape = None
         
         # Try different rotations
-        for angle in range(-30-angle, 30+angle, 5):  # 5-degree steps
+        for angle in range(-15-angle, 15+angle, 1):  # 5-degree steps
             # Rotate template
             matrix = cv2.getRotationMatrix2D(
                 (template.shape[1]/2, template.shape[0]/2), 
