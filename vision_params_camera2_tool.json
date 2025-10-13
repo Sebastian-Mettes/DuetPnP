@@ -10,11 +10,11 @@
         255
     ],
     "circle_params": {
-        "dp": 0.1,
+        "dp": 0.3,
         "minDist": 100,
         "param1": 98,
-        "param2": 6,
-        "minRadius": 0,
-        "maxRadius": 38
+        "param2": 24,
+        "minRadius": 3,
+        "maxRadius": 28
     }
 }

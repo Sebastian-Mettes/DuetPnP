@@ -31,7 +31,7 @@ class VisionTools:
         """
         self.camera_number = camera_number
         self.target = target
-        self.camera = cv2.VideoCapture(self.camera_number)
+        self.camera = cv2.VideoCapture(self.camera_number,cv2.CAP_V4L2)
         if not self.camera.isOpened():
             raise RuntimeError("Could not open camera")
         
