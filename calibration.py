@@ -72,16 +72,23 @@ class CalibrateToolheads:
     using G-code commands and vision-based calibration.
     """
 
-    def __init__(self):
+    def __init__(self, debug=False):
         """
         Initialize the CalibrateToolheads class.
-        
+
         Sets up the vision tools and establishes a connection to the printer.
+
+        Args:
+            debug (bool): Enable verbose debug printing
         """
 
         self.connection = CommandConnection(debug=False)
         self.connection.connect()
         self.camera_location = [21.6,-59.7,166.41] #Camera coordinates, XYZ
+        self.debug = debug  # Control verbosity of debug prints
+
+        # Cache VisionTools instances for performance (avoid repeated camera initialization)
+        self._vision_cache = {}  # {(camera_number, target): VisionTools instance}
 
 
 
@@ -352,34 +359,29 @@ class CalibrateToolheads:
             for source_axis, mapped_axis in axis_maps.items():
                 # Get the index for X, Y, or Z (0, 1, or 2)
                 axis_index = 'XYZ'.index(source_axis)
-                print(f"Axis index: {axis_index}")
                 # Calculate the difference in the source axis (X, Y, or Z)
-                print(f"Current position: {current_pos}")
-                print(f"Source axis: {source_axis}")
-                print(f"Current position: {current_pos[source_axis]}")
-                print(f"Expected position: {expected_position[axis_index]}")
                 source_diff = current_pos[source_axis] - expected_position[axis_index]
-                print(f"Source difference: {source_diff}")
                 # Add this difference to the current offset of the mapped axis
                 new_offsets[mapped_axis] = current_offsets[mapped_axis] - source_diff
-                print(f"New offsets: {new_offsets}")
-            
+
             # Build G10 command with mapped axes
             offset_params = ' '.join(
                 f"{axis}{value:.3f}" for axis, value in new_offsets.items()
             )
-            print('offset params built')
             self.send_gcode_command(
                 f"G10 P{toolhead_number} {offset_params}",
                 check=False
             )
-            
-            # Print the changes with axis mapping information
-            print(f"Axis mappings: {axis_maps}")
-            print(f"Current position: X{current_pos['X']:.3f} Y{current_pos['Y']:.3f} Z{current_pos['Z']:.3f}")
-            print(f"Expected position: X{expected_position[0]:.3f} Y{expected_position[1]:.3f} Z{expected_position[2]:.3f}")
-            print(f"Old offsets: {' '.join(f'{k}{v:.3f}' for k, v in current_offsets.items())}")
-            print(f"New offsets: {' '.join(f'{k}{v:.3f}' for k, v in new_offsets.items())}")
+
+            # Print the changes with axis mapping information (only if debug enabled)
+            if self.debug:
+                print(f"Axis mappings: {axis_maps}")
+                print(f"Current position: X{current_pos['X']:.3f} Y{current_pos['Y']:.3f} Z{current_pos['Z']:.3f}")
+                print(f"Expected position: X{expected_position[0]:.3f} Y{expected_position[1]:.3f} Z{expected_position[2]:.3f}")
+                print(f"Old offsets: {' '.join(f'{k}{v:.3f}' for k, v in current_offsets.items())}")
+                print(f"New offsets: {' '.join(f'{k}{v:.3f}' for k, v in new_offsets.items())}")
+            else:
+                print(f"Tool {toolhead_number} offset set: {' '.join(f'{k}{v:.3f}' for k, v in new_offsets.items())}")
             
         except ValueError as e:
             print(f"Error setting tool offset: {str(e)}")
@@ -453,13 +455,15 @@ class CalibrateToolheads:
             print(f"G0 X{location[0]} Y{location[1]} Z{location[2]} F6000")
             time.sleep(1.5)
 
-        # Initialize vision tools
-        vision = VisionTools(camera, target)
-        
+        # Get or create cached VisionTools instance (avoid repeated camera initialization)
+        cache_key = (camera, target)
+        if cache_key not in self._vision_cache:
+            self._vision_cache[cache_key] = VisionTools(camera, target)
+        vision = self._vision_cache[cache_key]
+
         # Get image dimensions and calculate center
         image_width, image_height = vision.get_image_dimensions()
         IMAGE_CENTER = (image_width // 2, image_height // 2)
-        #print(f"Image center: {IMAGE_CENTER}")
 
         # Mouse callback for target confirmation
         def mouse_callback(event, x, y, flags, param):
@@ -578,12 +582,14 @@ class CalibrateToolheads:
             
             # Move to new position slowly
             self.send_gcode_command(f"G0 X{new_x:.3f} Y{new_y:.3f} F1200", check=False)
-            print(f"Moved to new position: X{new_x:.3f} Y{new_y:.3f}")
-            # Small delay to ensure move is complete and camera image is updated
-            time.sleep(1.5)
-            
+            if self.debug:
+                print(f"Moved to new position: X{new_x:.3f} Y{new_y:.3f}")
+            # Reduced delay - enough for slow move to complete
+            time.sleep(0.8)
+
             iteration += 1
-            print(f"Centering iteration {iteration}: offset (pixels) = ({x_offset}, {y_offset}), move (mm) = ({x_move:.3f}, {y_move:.3f})")
+            if self.debug:
+                print(f"Centering iteration {iteration}: offset (pixels) = ({x_offset}, {y_offset}), move (mm) = ({x_move:.3f}, {y_move:.3f})")
         
         print("Failed to center tool after maximum iterations")
         if camera == 0:
@@ -622,13 +628,17 @@ class CalibrateToolheads:
         self.send_gcode_command("M106 P3 S255") #Turn on LED Ring for upper camera
         time.sleep(1.5)  # Give LED time to stabilize
         
-        # Initialize upper camera with correct target type
-        upper_camera = VisionTools(camera, target='camera')  # Use camera 2 to look for camera
-        
+        # Get or create cached VisionTools instance
+        cache_key = (camera, 'camera')
+        if cache_key not in self._vision_cache:
+            self._vision_cache[cache_key] = VisionTools(camera, target='camera')
+        upper_camera = self._vision_cache[cache_key]
+
         # Get image dimensions and calculate center
         image_width, image_height = upper_camera.get_image_dimensions()
         IMAGE_CENTER = (image_width // 2, image_height // 2)
-        print(f"Image center: {IMAGE_CENTER}")
+        if self.debug:
+            print(f"Image center: {IMAGE_CENTER}")
 
         # Mouse callback for target confirmation
         def mouse_callback(event, x, y, flags, param):
@@ -740,11 +750,13 @@ class CalibrateToolheads:
             
             # Move to new position slowly
             self.send_gcode_command(f"G0 X{new_x:.3f} Y{new_y:.3f} F1200", check=False)
-            print(f"Moved to new position: X{new_x:.3f} Y{new_y:.3f}")
+            if self.debug:
+                print(f"Moved to new position: X{new_x:.3f} Y{new_y:.3f}")
             time.sleep(0.5)
-            
+
             iteration += 1
-            print(f"Centering iteration {iteration}: offset (pixels) = ({x_offset}, {y_offset}), move (mm) = ({x_move:.3f}, {y_move:.3f})")
+            if self.debug:
+                print(f"Centering iteration {iteration}: offset (pixels) = ({x_offset}, {y_offset}), move (mm) = ({x_move:.3f}, {y_move:.3f})")
         
         print("Failed to center lower camera in upper camera view after maximum iterations")
         self.send_gcode_command("M106 P3 S0") #Turn off LED Ring for upper camera

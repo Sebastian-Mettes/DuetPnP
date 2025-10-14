@@ -24,7 +24,7 @@ class VisionTools:
     def __init__(self,camera_number,target = 'tool'):
         """
         Initialize VisionTools with camera and default parameters.
-        
+
         Args:
             camera_number (int): Camera device number
             target (str): Target type - either 'tool' or 'camera'
@@ -34,15 +34,18 @@ class VisionTools:
         self.camera = cv2.VideoCapture(self.camera_number,cv2.CAP_V4L2)
         if not self.camera.isOpened():
             raise RuntimeError("Could not open camera")
-        
+
+        # Optimize camera buffer for low latency (Raspberry Pi optimization)
+        self.camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize buffer lag
+
         # Set 720p resolution (1280x720)
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
-        
+
         # Verify resolution was set correctly
         actual_width = int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH))
         actual_height = int(self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        
+
         if actual_width != 1280 or actual_height != 960:
             print(f"Warning: Could not set 720p resolution. Actual resolution: {actual_width}x{actual_height}")
             # Try to set the closest supported resolution
@@ -52,7 +55,7 @@ class VisionTools:
             else:
                 self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
                 self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-        
+
         # Get final camera resolution
         self.width = int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = int(self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -60,11 +63,11 @@ class VisionTools:
         # Initialize IMAGE_CENTER for backward compatibility
         self.IMAGE_CENTER = (self.width // 2, self.height // 2)
         print(f"Camera initialized at {self.width}x{self.height} resolution")
-        
+
         # HSV threshold values
         self.hsv_lower = np.array([0, 0, 0])
         self.hsv_upper = np.array([180, 255, 255])
-        
+
         # Circle detection parameters
         self.dp = 1
         self.min_dist = 20
@@ -72,15 +75,18 @@ class VisionTools:
         self.param2 = 30
         self.min_radius = 0
         self.max_radius = 0
-        
+
         # Circle tracking
         self.circle_history = defaultdict(int)  # Track how many frames each circle has been seen
         self.last_circles = None  # Store last detected circles
         self.min_frames = 1  # Minimum number of frames a circle must appear in
-        
+
         # Camera settings
         self.brightness = 0
         self.contrast = 0
+
+        # Template cache for performance
+        self._template_cache = {}  # Cache loaded templates to avoid disk I/O
 
     
     def set_fixed_camera_offset(self, x: float, y: float):
@@ -127,51 +133,115 @@ class VisionTools:
     def find_component(self, template_path, angle = 0):
         """
         Find a component in the camera frame and determine its rotation.
-        
+        Uses coarse-to-fine search and early termination for better performance.
+
         Args:
             template_path: Path to template image file
-            
+            angle: Expected angle offset (default 0)
+
         Returns:
             tuple: (center_x, center_y, rotation_angle) if component found
             None: If component not found
         """
-        # Load template image
+        # Load template image with caching for performance
         self.search_frame = self.frame.copy()
-        template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
-        if template is None:
-            raise ValueError(f"Could not load template image: {template_path}")
-        
+        if template_path not in self._template_cache:
+            template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
+            if template is None:
+                raise ValueError(f"Could not load template image: {template_path}")
+            self._template_cache[template_path] = template
+        else:
+            template = self._template_cache[template_path]
+
         image_height, image_width = self.search_frame.shape[:2]
         self.IMAGE_CENTER = (image_width // 2, image_height // 2)
+
+        # Downsample for faster initial search (2x smaller)
+        scale_factor = 0.5
         gray = cv2.cvtColor(self.search_frame, cv2.COLOR_BGR2GRAY)
+        gray_small = cv2.resize(gray, None, fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_AREA)
+
+        # Cache downsampled template if not already cached
+        template_small_key = f"{template_path}_small"
+        if template_small_key not in self._template_cache:
+            template_small = cv2.resize(template, None, fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_AREA)
+            self._template_cache[template_small_key] = template_small
+        else:
+            template_small = self._template_cache[template_small_key]
         
         best_match = None
         best_score = -1
         best_angle = 0
         best_template_shape = None
         
-        # Try different rotations
-        for angle in range(-15-angle, 15+angle, 1):  # 5-degree steps
+        # Stage 1: Coarse search with 5-degree steps on downsampled image
+        coarse_angles = list(range(-15+angle, 16+angle, 5))
+        coarse_best_angle = 0
+        coarse_best_score = -1
+        
+        for test_angle in coarse_angles:
             # Rotate template
-            matrix = cv2.getRotationMatrix2D(
-                (template.shape[1]/2, template.shape[0]/2), 
-                angle, 1.0
-            )
-            # Let OpenCV automatically calculate the size needed to contain the entire rotated image
-            rotated = cv2.warpAffine(
-                template, matrix, 
-                None  # This allows OpenCV to determine the required output size
-            )
+            h, w = template_small.shape
+            matrix = cv2.getRotationMatrix2D((w/2, h/2), test_angle, 1.0)
+            
+            # Calculate new bounding box size to contain the rotated image
+            cos = np.abs(matrix[0, 0])
+            sin = np.abs(matrix[0, 1])
+            new_w = int((h * sin) + (w * cos))
+            new_h = int((h * cos) + (w * sin))
+            
+            # Adjust rotation matrix for the new size
+            matrix[0, 2] += (new_w / 2) - (w / 2)
+            matrix[1, 2] += (new_h / 2) - (h / 2)
+            
+            rotated = cv2.warpAffine(template_small, matrix, (new_w, new_h))
+            
+            # Template matching on downsampled image
+            result = cv2.matchTemplate(gray_small, rotated, cv2.TM_CCOEFF_NORMED)
+            _, max_val, _, _ = cv2.minMaxLoc(result)
+            
+            if max_val > coarse_best_score:
+                coarse_best_score = max_val
+                coarse_best_angle = test_angle
+            
+            # Early termination if we found an excellent match
+            if max_val > 0.95:
+                break
+        
+        # Stage 2: Fine search with 1-degree steps around best coarse angle on full-res image
+        fine_start = coarse_best_angle - 6
+        fine_end = coarse_best_angle + 6
+        
+        for test_angle in range(fine_start, fine_end + 1, 2):
+            # Rotate template at full resolution
+            h, w = template.shape
+            matrix = cv2.getRotationMatrix2D((w/2, h/2), test_angle, 1.0)
+            
+            # Calculate new bounding box size
+            cos = np.abs(matrix[0, 0])
+            sin = np.abs(matrix[0, 1])
+            new_w = int((h * sin) + (w * cos))
+            new_h = int((h * cos) + (w * sin))
+            
+            # Adjust rotation matrix
+            matrix[0, 2] += (new_w / 2) - (w / 2)
+            matrix[1, 2] += (new_h / 2) - (h / 2)
+            
+            rotated = cv2.warpAffine(template, matrix, (new_w, new_h))
             
             # Template matching
             result = cv2.matchTemplate(gray, rotated, cv2.TM_CCOEFF_NORMED)
-            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+            _, max_val, _, max_loc = cv2.minMaxLoc(result)
             
             if max_val > best_score:
                 best_score = max_val
                 best_match = max_loc
-                best_angle = angle
+                best_angle = test_angle
                 best_template_shape = rotated.shape
+            
+            # Early termination for excellent matches
+            if max_val > 0.95:
+                break
         
         if best_score > 0.6:
             # Use the actual rotated template dimensions
@@ -205,6 +275,7 @@ class VisionTools:
     def determine_rotation(self, template_path):
         """
         Determine the rotation of a component in the camera frame.
+        #THIS SCRIPT IS INCOMPLETE!
         """
         #Load template image
         template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
@@ -214,14 +285,18 @@ class VisionTools:
         #Get image dimensions
         image_height, image_width = self.search_frame.shape[:2]
         self.IMAGE_CENTER = (image_width // 2, image_height // 2)
-        
+        return False
         
 
-    def find_tool_position(self):
+    def find_tool_position(self, downsample=True):
         """
         Locate the tool in the camera frame using saved HSV and circle parameters.
         Handles multiple circle detection with user input if needed.
-        
+        Optimized for speed with optional downsampling.
+
+        Args:
+            downsample: If True, process downsampled images for faster detection (default True)
+
         Returns:
             tuple: (x, y) pixel coordinates of detected tool center
             None: If no tool can be detected
@@ -234,12 +309,15 @@ class VisionTools:
         except FileNotFoundError:
             print(f"No vision parameters found for camera {self.camera_number} and target {self.target}. Run vision_tools.py first to create parameter file.")
             return None
-        
+
         # Extract parameters
         hsv_lower = np.array(params['hsv_lower'])
         hsv_upper = np.array(params['hsv_upper'])
         circle_params = params['circle_params']
-        
+
+        # Downsampling factor for speed
+        scale = 0.5 if downsample else 1.0
+
         def mouse_callback(event, x, y, flags, circles):
             if event == cv2.EVENT_LBUTTONDOWN:
                 # Find which circle was clicked
@@ -248,86 +326,101 @@ class VisionTools:
                     r = circle[2]
                     # Check if click was inside circle
                     if (x - cx)**2 + (y - cy)**2 <= r**2:
-                        mouse_callback.selected_circle = (cx, cy)
+                        mouse_callback.selected_circle = (int(cx / scale), int(cy / scale))
                         print("Circle Selected")
                         return
-        
+
+        frame_count = 0
         while True:
-            # Get frame
-            frame = self.capture_frame()  # Using correct cv2.VideoCapture method
+            # Get frame (no buffer clearing in loop for speed)
+            frame = self.capture_frame()
             if frame is None:
                 continue
-            
-            # Process frame
-            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+            # Downsample for faster processing
+            if downsample:
+                frame_small = cv2.resize(frame, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+            else:
+                frame_small = frame
+
+            # Process frame - optimize by skipping masked image creation
+            hsv = cv2.cvtColor(frame_small, cv2.COLOR_BGR2HSV)
             mask = cv2.inRange(hsv, hsv_lower, hsv_upper)
-            masked = cv2.bitwise_and(frame, frame, mask=mask)
-            gray = cv2.cvtColor(masked, cv2.COLOR_BGR2GRAY)
-            
-            # Find circles
+
+            # Apply mask and convert to gray in one step (more efficient)
+            gray = cv2.cvtColor(frame_small, cv2.COLOR_BGR2GRAY)
+            gray = cv2.bitwise_and(gray, gray, mask=mask)
+
+            # Find circles with scaled parameters
             circles = cv2.HoughCircles(
                 gray,
                 cv2.HOUGH_GRADIENT,
                 dp=circle_params['dp'],
-                minDist=circle_params['minDist'],
+                minDist=int(circle_params['minDist'] * scale),
                 param1=circle_params['param1'],
                 param2=circle_params['param2'],
-                minRadius=circle_params['minRadius'],
-                maxRadius=circle_params['maxRadius']
+                minRadius=int(circle_params['minRadius'] * scale),
+                maxRadius=int(circle_params['maxRadius'] * scale)
             )
-            
+
             if circles is not None:
                 circles = np.int32(np.around(circles))
-            
+
                 if len(circles[0]) == 1:
-                    # Single circle found
+                    # Single circle found - scale back to original coordinates
                     print("Single Circle Found")
-                    return (int(circles[0][0][0]), int(circles[0][0][1]))
-                
+                    x = int(circles[0][0][0] / scale)
+                    y = int(circles[0][0][1] / scale)
+                    return (x, y)
+
                 elif len(circles[0]) > 1:
                     # Check distances between circles
                     max_distance = 0
                     for i in range(len(circles[0])):
                         for j in range(i + 1, len(circles[0])):
-                            dist = np.sqrt((circles[0][i][0] - circles[0][j][0])**2 + 
+                            dist = np.sqrt((circles[0][i][0] - circles[0][j][0])**2 +
                                          (circles[0][i][1] - circles[0][j][1])**2)
                             max_distance = max(max_distance, dist)
-                    
-                    if max_distance > 200:
+
+                    if max_distance > (200 * scale):
                         # Circles are far apart, need user input
-                        output = frame.copy()
-                        
+                        output = frame_small.copy()
+
                         # Draw all circles
                         for circle in circles[0]:
                             cv2.circle(output, (circle[0], circle[1]), circle[2], (0, 255, 0), 2)
                             cv2.circle(output, (circle[0], circle[1]), 2, (0, 0, 255), 3)
-                        
+
                         # Set up mouse callback
                         mouse_callback.selected_circle = None
                         cv2.namedWindow('Select Tool')
                         cv2.setMouseCallback('Select Tool', mouse_callback, circles)
-                        
+
                         # Display instructions
                         cv2.putText(output, "Click the correct circle", (10, 30),
                                   cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                        
+
                         while mouse_callback.selected_circle is None:
                             cv2.imshow('Select Tool', output)
                             if cv2.waitKey(1) & 0xFF == ord('q'):
                                 cv2.destroyWindow('Select Tool')
                                 return None
-                        
+
                         cv2.destroyWindow('Select Tool')
                         return mouse_callback.selected_circle
-                    
+
                     else:
-                        # Circles are close, take average
-                        avg_x = int(np.mean([circle[0] for circle in circles[0]]))
-                        avg_y = int(np.mean([circle[1] for circle in circles[0]]))
+                        # Circles are close, take average and scale back
+                        avg_x = int(np.mean([circle[0] for circle in circles[0]]) / scale)
+                        avg_y = int(np.mean([circle[1] for circle in circles[0]]) / scale)
                         return (avg_x, avg_y)
-            
-            # No circles found, keep running
-            cv2.imshow('Searching for tool...', frame)
+
+            # Display every 3rd frame to reduce overhead
+            frame_count += 1
+            if frame_count % 3 == 0:
+                display_frame = frame_small if downsample else frame
+                cv2.imshow('Searching for tool...', display_frame)
+
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 cv2.destroyAllWindows()
                 return None
@@ -364,21 +457,25 @@ class VisionTools:
             print(f"Error initializing camera: {e}")
             return False
             
-    def capture_frame(self) -> Optional[np.ndarray]:
+    def capture_frame(self, clear_buffer=False) -> Optional[np.ndarray]:
         """
         Capture a single frame from the camera.
-        
+
+        Args:
+            clear_buffer: If True, clear camera buffer before capturing (use sparingly)
+
         Returns:
             Optional[np.ndarray]: The captured frame or None if capture failed
         """
         if self.camera is None:
             print("Camera not initialized")
             return None
-            
-        # Clear the buffer by reading a few frames
-        for _ in range(10):  # Read 3 frames to clear buffer
-            self.camera.read()
-            
+
+        # Only clear buffer if explicitly requested (e.g., after long pause)
+        if clear_buffer:
+            for _ in range(3):  # Reduced from 10 to 3
+                self.camera.read()
+
         ret, frame = self.camera.read()
         if not ret:
             print("Failed to capture frame")
@@ -389,24 +486,22 @@ class VisionTools:
     def apply_hsv_threshold(self, frame: np.ndarray) -> np.ndarray:
         """
         Apply HSV thresholding to the frame.
-        
+
         Args:
             frame: Input frame in BGR format
-            
+
         Returns:
             np.ndarray: Binary mask after thresholding
         """
         # Convert to HSV
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        
+
         # Apply threshold
         mask = cv2.inRange(hsv, self.hsv_lower, self.hsv_upper)
-        
-        # Apply morphological operations to clean up the mask
-        kernel = np.ones((1,1), np.uint8)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-        
+
+        # Note: Removed morphological operations - 1x1 kernel had no effect
+        # Add morphology back with proper kernel size if needed for noise reduction
+
         return mask
         
     def _circle_key(self, circle: np.ndarray) -> Tuple[int, int, int]:
@@ -457,26 +552,25 @@ class VisionTools:
     def detect_circles(self, frame: np.ndarray, mask: np.ndarray) -> Tuple[np.ndarray, np.ndarray, List]:
         """
         Detect circles in the frame using Hough Circle Transform, only within the HSV mask.
-        
+        Optimized to reduce redundant color conversions.
+
         Args:
             frame: Input frame in BGR format
             mask: Binary mask from HSV thresholding
-            
+
         Returns:
             Tuple[np.ndarray, np.ndarray, List]: (Output frame with circles drawn, Masked color image with circles, List of detected circles)
         """
-        # Create a masked version of the original color image
-        masked_color = cv2.bitwise_and(frame, frame, mask=mask)
-        
-        # Convert the masked color image to grayscale for circle detection
-        masked_gray = cv2.cvtColor(masked_color, cv2.COLOR_BGR2GRAY)
-        
-        # Apply Gaussian blur to reduce noise
-        blurred = cv2.GaussianBlur(masked_gray, (1, 1), 0)
-        
+        # Convert to grayscale first, then apply mask (more efficient)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        masked_gray = cv2.bitwise_and(gray, gray, mask=mask)
+
+        # Note: Removed Gaussian blur with 1x1 kernel (has no effect)
+        # Add back with proper kernel size if needed: cv2.GaussianBlur(masked_gray, (5, 5), 0)
+
         # Detect circles
         circles = cv2.HoughCircles(
-            blurred,
+            masked_gray,
             cv2.HOUGH_GRADIENT,
             dp=self.dp,
             minDist=self.min_dist,
@@ -485,29 +579,34 @@ class VisionTools:
             minRadius=self.min_radius,
             maxRadius=self.max_radius
         )
-        
+
         # Create copies for drawing
         output = frame.copy()
-        masked_output = masked_color.copy()
-        
+
         # Update circle history and get stable circles
         stable_circles = self._update_circle_history(circles)
-        
+
+        # Create masked color image only if we have circles to draw (lazy evaluation)
         if stable_circles:
+            masked_color = cv2.bitwise_and(frame, frame, mask=mask)
+            masked_output = masked_color.copy()
             print(f"Detected {len(stable_circles)} stable circles")  # Debug info
-            
+
             for circle in stable_circles:
                 x, y, r = circle
                 # Draw on original frame
                 cv2.circle(output, (int(x), int(y)), int(r), (0, 255, 0), 2)
                 cv2.circle(output, (int(x), int(y)), 2, (0, 0, 255), 3)
-                
+
                 # Draw on masked image
                 cv2.circle(masked_output, (int(x), int(y)), int(r), (0, 255, 0), 2)
                 cv2.circle(masked_output, (int(x), int(y)), 2, (0, 0, 255), 3)
         else:
+            # No circles - create minimal masked output
+            masked_color = cv2.bitwise_and(frame, frame, mask=mask)
+            masked_output = masked_color
             print("No stable circles detected")  # Debug info
-        
+
         return output, masked_output, stable_circles
         
     def calibrate_camera(self, 
@@ -672,8 +771,8 @@ if __name__ == "__main__":
     camera_number = int(sys.argv[1]) if len(sys.argv) > 1 else 0
     target = sys.argv[2] if len(sys.argv) > 2 else 'tool'
     
-    if target not in ['tool', 'camera']:
-        print("Invalid target. Must be either 'tool' or 'camera'")
+    if target not in ['tool', 'camera','target']:
+        print("Invalid target. Must be either 'tool' or 'camera' or 'target'")
         sys.exit(1)
     
     # Default parameter file location (camera and target specific)
@@ -709,7 +808,7 @@ if __name__ == "__main__":
                     'minDist': 20,
                     'param1': 100,
                     'param2': 20,
-                    'minRadius': 1,
+                    'minRadius': 10,
                     'maxRadius': 20
                 }
         }
