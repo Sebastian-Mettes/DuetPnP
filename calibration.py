@@ -283,7 +283,29 @@ class CalibrateToolheads:
         except json.JSONDecodeError:
             return 0
 
-
+    def control_vacuum(self, state: bool) -> None:
+        """
+        Control vacuum pump for picking/placing components.
+        
+        Args:
+            state: True to turn on vacuum, False to turn off
+        """
+        if state:
+            self.send_gcode_command(f"M106 P{self.config['vacuum_pin']} S40")
+        else:
+            self.send_gcode_command(f"M106 P{self.config['vacuum_pin']} S0")
+            
+    def control_solenoid(self, state: bool) -> None:
+        """
+        Control solenoid valve for picking/placing components.
+        
+        Args:
+            state: True to open solenoid, False to close solenoid
+        """
+        if state:
+            self.send_gcode_command(f"M106 P{self.config['solenoid_pin']} S2")
+        else:
+            self.send_gcode_command(f"M106 P{self.config['solenoid_pin']} S0")
 
     def set_tool_offset(self, expected_position, toolhead_number):
         """
@@ -393,7 +415,7 @@ class CalibrateToolheads:
         self.send_gcode_command(move_cmd, check=False)
 
 
-    def calibrate_tool_with_camera(self, toolhead_number, target='tool', camera=0, deselect_tool=True):
+    def calibrate_tool_with_camera(self, toolhead_number, target='tool', camera=0, deselect_tool=True,location=None):
         """
         Prepare a specific toolhead for calibration and center it in the camera view.
         Uses computer vision to locate the tool and iteratively moves it to the center.
@@ -422,10 +444,14 @@ class CalibrateToolheads:
             self.send_gcode_command("M106 P3 S255") #Turn on LED Ring for upper camera
         else:
             raise ValueError(f"Invalid camera number: {camera}. Must be 0 (lower) or 2 (upper)")
-            
-        self.send_gcode_command(f"G0 X{self.camera_location[0]} Y{self.camera_location[1]} Z{self.camera_location[2]} F6000", check=False)
-        print(f"G0 X{self.camera_location[0]} Y{self.camera_location[1]} Z{self.camera_location[2]} F6000")
-        time.sleep(1.5)
+        if location is None:  
+            self.send_gcode_command(f"G0 X{self.camera_location[0]} Y{self.camera_location[1]} Z{self.camera_location[2]} F6000", check=False)
+            print(f"G0 X{self.camera_location[0]} Y{self.camera_location[1]} Z{self.camera_location[2]} F6000")
+            time.sleep(1.5)
+        else:
+            self.send_gcode_command(f"G0 X{location[0]} Y{location[1]} Z{location[2]} F6000", check=False)
+            print(f"G0 X{location[0]} Y{location[1]} Z{location[2]} F6000")
+            time.sleep(1.5)
 
         # Initialize vision tools
         vision = VisionTools(camera, target)
@@ -433,7 +459,7 @@ class CalibrateToolheads:
         # Get image dimensions and calculate center
         image_width, image_height = vision.get_image_dimensions()
         IMAGE_CENTER = (image_width // 2, image_height // 2)
-        print(f"Image center: {IMAGE_CENTER}")
+        #print(f"Image center: {IMAGE_CENTER}")
 
         # Mouse callback for target confirmation
         def mouse_callback(event, x, y, flags, param):
@@ -508,8 +534,15 @@ class CalibrateToolheads:
                 print(f"Camera location: {self.camera_location}")
                 # Set tool offset relative to camera location
                 try:
-                    self.set_tool_offset(self.camera_location, toolhead_number)
-                    print("Tool offset successfully set relative to camera position")
+                    if target != 'target':
+                        self.set_tool_offset(self.camera_location, toolhead_number)
+                        print("Tool offset successfully set relative to camera position")
+                    elif location is not None:
+                        self.set_tool_offset(location, toolhead_number)
+                        print("Tool offset successfully set relative to camera position")
+
+                    else:
+                        self.target_position = self.camera_location
                     if camera == 0:
                         self.send_gcode_command("M106 P4 S0") #Turn off LED Ring for lower camera
                     elif camera == 2:
@@ -718,6 +751,55 @@ class CalibrateToolheads:
         self.send_gcode_command("T-1", check=False)
         return False
 
+    def calibrate_camera_with_PnP(self, camera=2):
+        """
+        Calibrate the camera using PnP. This will use Tool 2 to pickup a circular target object near (10,10) on the bed and 
+        then move to the upward facing camera. After centering the target to determine any offset, in the upward facing camera image,
+        the camera will go deposit it at (110,110) on the bed. With this known location, the downward facing
+        camera is then accurately calibrated.
+        """
+        print("Calibrating camera using PnP...")
+        self.send_gcode_command("T2", check=False)
+        time.sleep(2.5)
+        self.send_gcode_command("G0 X10 Y10 Z50F6000", check=False)
+        time.sleep(1.5)
+        self.control_solenoid(True)
+        time.sleep(0.5)
+        self.control_vacuum(True)
+        self.linear_move(z=1)#assume target is 1 mm tall.
+        time.sleep(2.5)
+        self.linear_move(z=self.camera_location[2])
+        time.sleep(1.5)
+        self.send_gcode_command(f"G0 X{self.camera_location[0]} Y{self.camera_location[1]} Z{self.camera_location[2]} F6000", check=False)
+        time.sleep(1.5)
+        target = self.calibrate_tool_with_camera(camera=0, target='target',deselect_tool=False)
+        #self.target_position is now set to camera_location. Move to 110,110:
+        self.send_gcode_command(f"M563 P{2}", check=False)
+        # Get current position
+        self.send_gcode_command("M114", check=False)
+        current_pos = self.parse_position(self.response)
+        # Calculate target position by adding offset from camera location
+        # Note: current_pos and self.camera_location are dictionaries with X,Y,Z keys
+        target_x = 110 + (current_pos['X'] - self.camera_location[0])
+        target_y = 110 + (current_pos['Y'] - self.camera_location[1])
+        self.send_gcode_command(f"G0 X{target_x} Y{target_y} F6000", check=False)        
+        time.sleep(1.5)
+        self.linear_move(z=1)
+
+        self.control_solenoid(False)
+        time.sleep(0.5)
+        self.control_vacuum(False)
+        time.sleep(0.5)
+        self.linear_move(z=150)
+        time.sleep(1.5)
+        #Now call camera 3 and move to (110,110):
+        self.send_gcode_command("T3", check=False)
+        self.linear_move(x=110,y=110,z=110)#Check the z-value!
+        time.sleep(1.5)
+        target = self.calibrate_tool_with_camera(camera=2, target='target')
+
+        print("Upper Camera Calibration Complete")
+        return True
 
 
 
@@ -731,6 +813,7 @@ if __name__ == "__main__":
         Printer.calibrate_tool_with_camera(1,camera = 0)
         Printer.calibrate_tool_with_camera(2,camera = 0)
         Printer.calibrate_camera_with_camera(3,camera= 2)
+        Printer.calibrate_camera_with_PnP(camera= 2)
     finally:
         # Ensure LEDs are turned off before closing
         Printer.send_gcode_command("M106 P3 S0") #Turn off LED Ring for upper camera
