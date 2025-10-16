@@ -5,16 +5,16 @@
         0
     ],
     "hsv_upper": [
-        180,
+        160,
         255,
         255
     ],
     "circle_params": {
-        "dp": 0.6,
+        "dp": 0.9,
         "minDist": 100,
-        "param1": 101,
-        "param2": 23,
-        "minRadius": 5,
-        "maxRadius": 38
+        "param1": 100,
+        "param2": 12,
+        "minRadius": 156,
+        "maxRadius": 175
     }
 }

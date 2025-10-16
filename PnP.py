@@ -339,7 +339,7 @@ class PnP:
             time.sleep(0.1)
         return False
 
-    def send_gcode_and_wait(self, gcode_command, check=True, timeout=30):
+    def send_gcode_and_wait(self, gcode_command, check=True, timeout=10):
         """
         Send a G-code command and wait for it to complete.
         
@@ -352,39 +352,7 @@ class PnP:
             bool: True if command completed successfully
         """
         self.printer.send_gcode_command(gcode_command, check=check)
-
-        start_time = time.time()
-        last_position = None
-        stable_count = 0
-        position_tolerance = 0.001
-    
-        while time.time() - start_time < timeout:
-            # Get current position
-            response = self.printer.perform_simple_code("M114")
-            current_position = self.printer.parse_position(response)
-            
-            if last_position is not None:
-                # Check if position has changed significantly
-                position_changed = False
-                for axis in ['X', 'Y', 'Z']:
-                    if axis in current_position and axis in last_position:
-                        if abs(current_position[axis] - last_position[axis]) > position_tolerance:
-                            position_changed = True
-                            break
-                
-                if not position_changed:
-                    stable_count += 1
-                    if stable_count >= 3:  # Require 3 consecutive stable readings
-                        return True
-                else:
-                    stable_count = 0
-            
-            last_position = current_position.copy()
-            time.sleep(0.05)   
-                    
-
-
-        return False
+        return self.wait_for_printer_idle(timeout)
 
 
 

@@ -81,10 +81,11 @@ class CalibrateToolheads:
         Args:
             debug (bool): Enable verbose debug printing
         """
-
+        self.vacuum_pin = "fan_1"
+        self.solenoid_pin = "fan_2"
         self.connection = CommandConnection(debug=False)
         self.connection.connect()
-        self.camera_location = [21.6,-59.7,166.41] #Camera coordinates, XYZ
+        self.camera_location = [21.6,-59.7,168.00] #Camera coordinates, XYZ
         self.debug = debug  # Control verbosity of debug prints
 
         # Cache VisionTools instances for performance (avoid repeated camera initialization)
@@ -298,9 +299,9 @@ class CalibrateToolheads:
             state: True to turn on vacuum, False to turn off
         """
         if state:
-            self.send_gcode_command(f"M106 P{self.config['vacuum_pin']} S40")
+            self.send_gcode_command(f"M106 P1    S120")
         else:
-            self.send_gcode_command(f"M106 P{self.config['vacuum_pin']} S0")
+            self.send_gcode_command(f"M106 P1 S0")
             
     def control_solenoid(self, state: bool) -> None:
         """
@@ -310,9 +311,9 @@ class CalibrateToolheads:
             state: True to open solenoid, False to close solenoid
         """
         if state:
-            self.send_gcode_command(f"M106 P{self.config['solenoid_pin']} S2")
+            self.send_gcode_command(f"M106 P2 S2")
         else:
-            self.send_gcode_command(f"M106 P{self.config['solenoid_pin']} S0")
+            self.send_gcode_command(f"M106 P2 S0")
 
     def set_tool_offset(self, expected_position, toolhead_number):
         """
@@ -433,11 +434,11 @@ class CalibrateToolheads:
             bool: True if calibration successful, False if tool cannot be centered
         """
         # Select the tool and move to initial position
-        self.send_gcode_command("T-1", check=False)
+#        self.send_gcode_command("T-1", check=False)
         self.send_gcode_command(f"T{toolhead_number}", check=False)
         
         # Move to safe Z height first
-        self.send_gcode_command("G0 Z166.41 F6000", check=False)
+        self.send_gcode_command("G0 Z168.00 F6000", check=False)
         
         # Move to approximate camera XY position
         if camera == 0:
@@ -457,8 +458,8 @@ class CalibrateToolheads:
 
         # Get or create cached VisionTools instance (avoid repeated camera initialization)
         cache_key = (camera, target)
-        if cache_key not in self._vision_cache:
-            self._vision_cache[cache_key] = VisionTools(camera, target)
+        #if cache_key not in self._vision_cache:
+        self._vision_cache[cache_key] = VisionTools(camera, target)
         vision = self._vision_cache[cache_key]
 
         # Get image dimensions and calculate center
@@ -553,6 +554,7 @@ class CalibrateToolheads:
                         self.send_gcode_command("M106 P3 S0") #Turn off LED Ring for upper camera
                     if deselect_tool:
                         self.send_gcode_command("T-1", check=False)
+                    vision.cleanup()
                     return True
                 except Exception as e:
                     print(f"Failed to set tool offset: {str(e)}")
@@ -562,6 +564,7 @@ class CalibrateToolheads:
                         self.send_gcode_command("M106 P3 S0") #Turn off LED Ring for upper camera
                     if deselect_tool:
                         self.send_gcode_command("T-1", check=False)
+                    vision.cleanup()
                     return False
             
             # Get current machine position
@@ -575,7 +578,9 @@ class CalibrateToolheads:
             # Calculate move distance using current conversion factor
             x_move = -y_offset * pixels_to_mm
             y_move = x_offset * pixels_to_mm
-            
+            if toolhead_number == 3:
+                x_move = -x_offset * pixels_to_mm
+                y_move = y_offset * pixels_to_mm
             # Calculate new position
             new_x = current_pos['X'] + x_move
             new_y = current_pos['Y'] + y_move
@@ -598,8 +603,29 @@ class CalibrateToolheads:
             self.send_gcode_command("M106 P3 S0") #Turn off LED Ring for upper camera
         if deselect_tool:
             self.send_gcode_command("T-1", check=False) #Deselect tool
+        vision.cleanup()
         return False
+    def wait_for_printer_idle(self, timeout=10):
+        """
+        Wait for the printer to become idle (finish current command).
+        
+        Args:
+            timeout (float): Maximum time to wait in seconds
+            
+        Returns:
+            bool: True if printer became idle, False if timeout
+        """
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            # Send M400 to wait for all moves to complete
+            self.send_gcode_command("M409 K'state.status'", check=False)
+            # Check if printer is idle by looking for "ok" response
+            if "idle" in self.response.lower():
+                print('continuing')
+                return True
 
+            time.sleep(0.05)
+        return False
     def calibrate_camera_with_camera(self, tool, camera=2):
         """
         Calibrate the upper camera (camera 2) using the lower camera (camera 0) as reference.
@@ -730,6 +756,7 @@ class CalibrateToolheads:
                 # Clean up
                 self.send_gcode_command("M106 P3 S0") #Turn off LED Ring for upper camera
                 self.send_gcode_command("T-1", check=False)
+                vision.cleanup()
                 return True
             
             # Get current machine position
@@ -757,10 +784,11 @@ class CalibrateToolheads:
             iteration += 1
             if self.debug:
                 print(f"Centering iteration {iteration}: offset (pixels) = ({x_offset}, {y_offset}), move (mm) = ({x_move:.3f}, {y_move:.3f})")
-        
+        vision.cleanup()
         print("Failed to center lower camera in upper camera view after maximum iterations")
         self.send_gcode_command("M106 P3 S0") #Turn off LED Ring for upper camera
         self.send_gcode_command("T-1", check=False)
+        vision.cleanup()
         return False
 
     def calibrate_camera_with_PnP(self, camera=2):
@@ -782,9 +810,9 @@ class CalibrateToolheads:
         time.sleep(2.5)
         self.linear_move(z=self.camera_location[2])
         time.sleep(1.5)
-        self.send_gcode_command(f"G0 X{self.camera_location[0]} Y{self.camera_location[1]} Z{self.camera_location[2]} F6000", check=False)
+        self.send_gcode_command(f"G0 X{self.camera_location[0]} Y{self.camera_location[1]} Z{self.camera_location[2]+10} F6000", check=False)
         time.sleep(1.5)
-        target = self.calibrate_tool_with_camera(camera=0, target='target',deselect_tool=False)
+        target = self.calibrate_tool_with_camera(2, target='target',camera = 0,deselect_tool=False)
         #self.target_position is now set to camera_location. Move to 110,110:
         self.send_gcode_command(f"M563 P{2}", check=False)
         # Get current position
@@ -796,8 +824,8 @@ class CalibrateToolheads:
         target_y = 110 + (current_pos['Y'] - self.camera_location[1])
         self.send_gcode_command(f"G0 X{target_x} Y{target_y} F6000", check=False)        
         time.sleep(1.5)
-        self.linear_move(z=1)
-
+        self.linear_move(z=0)
+        self.wait_for_printer_idle()
         self.control_solenoid(False)
         time.sleep(0.5)
         self.control_vacuum(False)
@@ -808,9 +836,10 @@ class CalibrateToolheads:
         self.send_gcode_command("T3", check=False)
         self.linear_move(x=110,y=110,z=110)#Check the z-value!
         time.sleep(1.5)
-        target = self.calibrate_tool_with_camera(camera=2, target='target')
+        target = self.calibrate_tool_with_camera(toolhead_number=3, target='target',camera=2,location = [110,110,150.5])
 
         print("Upper Camera Calibration Complete")
+        upper_camera.release()
         return True
 
 
@@ -823,9 +852,9 @@ if __name__ == "__main__":
     try:
         Printer.calibrate_tool_with_camera(0,camera = 0)
         Printer.calibrate_tool_with_camera(1,camera = 0)
-        Printer.calibrate_tool_with_camera(2,camera = 0)
-        Printer.calibrate_camera_with_camera(3,camera= 2)
-        Printer.calibrate_camera_with_PnP(camera= 2)
+        #Printer.calibrate_tool_with_camera(2,camera = 0)
+        #Printer.calibrate_camera_with_camera(3,camera= 2)
+        #Printer.calibrate_camera_with_PnP(camera= 2)
     finally:
         # Ensure LEDs are turned off before closing
         Printer.send_gcode_command("M106 P3 S0") #Turn off LED Ring for upper camera
