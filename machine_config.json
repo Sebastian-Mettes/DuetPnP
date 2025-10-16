@@ -1,0 +1,26 @@
+{
+  "name": "DuetPnP Pick-and-Place Machine",
+  "description": "Machine-specific configuration for hardware pins and settings",
+  "vacuum": {
+    "pin": "fan1",
+    "on_value": 40,
+    "off_value": 0,
+    "description": "Vacuum pump control for component pickup"
+  },
+  "solenoid": {
+    "pin": "fan2",
+    "on_value": 255,
+    "off_value": 0,
+    "description": "Solenoid valve control for vacuum release"
+  },
+  "feeder": {
+    "num_belts": 3,
+    "radius_mm": 11.45,
+    "description": "Rotary belt feeder configuration"
+  },
+  "motion": {
+    "default_feed_rate": 6000,
+    "safe_z_height": 150,
+    "description": "Default motion parameters"
+  }
+}

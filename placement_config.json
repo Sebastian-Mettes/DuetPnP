@@ -96,7 +96,5 @@
                 }
             ]
         }
-    ],
-    "vacuum_pin": "fan1",
-    "solenoid_pin": "fan2"
-} 
+    ]
+}

@@ -6,6 +6,61 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 DuetPnP is a Python-based pick-and-place (PnP) automation system built on the Duet3D printer platform. It uses computer vision (OpenCV) for automated component detection, positioning, and placement. The system operates a multi-toolhead printer modified for surface-mount component assembly, using dual cameras (upper downward-facing, lower upward-facing) for precise positioning and verification.
 
+## ⚠️ IMPORTANT: Refactored Architecture (October 2024)
+
+The codebase has been **completely refactored** into a clean, modular structure. Old implementation files have been moved to `old_implementation/` folder for reference.
+
+### New File Structure (USE THESE):
+```
+├── machine_vision.py          # All vision operations (VisionTools, CameraConfig)
+├── machine_control.py         # All machine control (Printer, Feeder, centering)
+├── pnp_operations.py          # PnP workflow (ConfigManager, PnPWorkflow)
+├── run_pnp_task.py           # Main entry point
+├── camera_config_0.json      # Camera 0 configuration & transforms
+├── camera_config_2.json      # Camera 2 configuration & transforms
+├── generate_tool_vision_params.py  # Vision parameter calibration tool
+└── old_implementation/       # ⚠️ OLD CODE - DO NOT MODIFY
+    ├── vision_tools.py       # (archived)
+    ├── calibration.py        # (archived)
+    ├── feed.py              # (archived)
+    ├── PnP.py               # (archived)
+    └── ...
+```
+
+### Key Architectural Improvements:
+
+1. **Camera Configuration System**: Camera-specific coordinate transforms in JSON files
+   - Eliminates hardcoded pixel→mm conversions
+   - Automatic image rotation/flipping for logical orientation
+   - Per-camera LED control pins
+
+2. **Unified Centering Algorithm**: Single `center_target_in_camera()` function
+   - Replaces duplicate centering code from 4 old files
+   - Config-driven coordinate transforms
+   - Works for tool calibration AND component detection
+
+3. **Tool-Specific Vision Parameters**: Per-(camera, tool) calibration
+   - Format: `vision_params_camera{N}_tool{T}.json`
+   - Eliminates parameter sharing across tools
+   - Use `generate_tool_vision_params.py` to create
+
+4. **Clean Separation of Concerns**:
+   - `machine_vision.py` → "How to see things"
+   - `machine_control.py` → "How to move and center things"
+   - `pnp_operations.py` → "What to do with PnP workflows"
+   - `run_pnp_task.py` → "Execute the task"
+
+### Running PnP Tasks:
+```bash
+# Generate tool vision parameters (do once per tool):
+python generate_tool_vision_params.py 0 0  # Camera 0, Tool 0
+python generate_tool_vision_params.py 0 1  # Camera 0, Tool 1
+python generate_tool_vision_params.py 0 2  # Camera 0, Tool 2
+
+# Run pick-and-place:
+python run_pnp_task.py placement_config.json
+```
+
 ## Development Setup
 
 ### Environment Setup
@@ -29,16 +84,39 @@ pip install -r requirements.txt
 
 **Important**: The `dsf-python` version must match your printer's RepRapFirmware version. The current version (3.6rc2) works with RepRapFirmware 3.6RC2.
 
-## Core Architecture
+## Core Architecture (New Refactored System)
 
 ### System Components
 
-The system consists of four main modules that work together:
+The refactored system consists of four main modules:
 
-1. **PnP.py** - Main orchestrator that coordinates the entire pick-and-place workflow
-2. **calibration.py** - Controls printer movement, G-code communication, and toolhead calibration
-3. **vision_tools.py** - Handles all computer vision operations (detection, tracking, template matching)
-4. **feed.py** - Manages the component feeder system with rotary belt mechanism
+1. **machine_vision.py** - All computer vision operations
+   - `VisionTools` class: Frame capture, template matching, circle detection
+   - `CameraConfig` class: Camera-specific transforms and configuration
+   - Window management functions
+   - Template caching for performance
+   - Tool-specific vision parameter loading
+
+2. **machine_control.py** - All machine control operations
+   - `Printer` class: G-code commands, motion control, tool management
+   - `Feeder` class: Rotary belt component feeding
+   - `center_target_in_camera()`: Generic centering algorithm (replaces all duplicate code)
+
+3. **pnp_operations.py** - PnP workflow orchestration
+   - `ConfigManager`: Loads placement configs, templates, camera offsets
+   - `PnPWorkflow`: Orchestrates pickup, orientation detection, and placement
+
+4. **run_pnp_task.py** - Main entry point
+   - Initializes all systems
+   - Loads camera configurations
+   - Executes PnP workflow
+
+### Old Architecture (Archived)
+
+The original system (now in `old_implementation/`) had these files:
+- `PnP.py`, `calibration.py`, `vision_tools.py`, `feed.py` - ⚠️ DO NOT USE
+- These contained duplicate code and hardcoded transforms
+- Kept for reference only
 
 ### Hardware Configuration
 
@@ -63,6 +141,46 @@ The system consists of four main modules that work together:
 - Radius: 11.45mm
 - Rock-back-then-forward feed mechanism
 
+### Camera Configuration System (NEW)
+
+The refactored system uses JSON configuration files for each camera, eliminating hardcoded coordinate transforms:
+
+**camera_config_0.json** (Upward camera):
+```json
+{
+  "transform": {
+    "image_flip": "vertical",
+    "image_rotate": 180,
+    "pixel_to_mm": 0.015,
+    "pixel_x_to_machine_x": 0.0,
+    "pixel_x_to_machine_y": 1.0,
+    "pixel_y_to_machine_x": -1.0,
+    "pixel_y_to_machine_y": 0.0
+  }
+}
+```
+
+**camera_config_2.json** (Downward camera):
+```json
+{
+  "transform": {
+    "image_flip": null,
+    "image_rotate": 0,
+    "pixel_to_mm": 0.015,
+    "pixel_x_to_machine_x": -1.0,
+    "pixel_x_to_machine_y": 0.0,
+    "pixel_y_to_machine_x": 0.0,
+    "pixel_y_to_machine_y": 1.0
+  }
+}
+```
+
+**Benefits:**
+- Images automatically rotated/flipped for logical orientation
+- All cameras use same convention: object offset +X in image → move -X on machine
+- Transform matrix handles camera orientation differences
+- Easy to add new cameras - just create new config file
+
 ### Coordinate Systems and Offsets
 
 The system maintains several coordinate reference frames:
@@ -82,11 +200,20 @@ The system uses two complementary vision approaches:
 - **Circle detection** (Hough Transform): For tools and camera lenses during calibration
 - **Template matching**: For component identification and orientation detection
 
-**Parameter Files:**
-Vision parameters are stored per-camera and per-target:
-- `vision_params_camera{N}_{target}.json`
-- Examples: `vision_params_camera0_tool.json`, `vision_params_camera2_tool.json`
+**Parameter Files (NEW - Tool-Specific):**
+Vision parameters are now stored per (camera, tool) pair:
+- Format: `vision_params_camera{N}_tool{T}.json`
+- Examples:
+  - `vision_params_camera0_tool0.json` - Camera 0 detecting Tool 0
+  - `vision_params_camera0_tool1.json` - Camera 0 detecting Tool 1
+  - `vision_params_camera0_tool2.json` - Camera 0 detecting Tool 2
+  - `vision_params_camera2_tool.json` - Camera 2 general (unchanged)
 - Each contains HSV thresholds and circle detection parameters
+- Generate using: `python generate_tool_vision_params.py <camera_num> <tool_num>`
+
+**Old Format (Archived):**
+- `vision_params_camera0_tool.json` - ⚠️ Shared across all tools (problematic)
+- Now in `old_implementation/` folder
 
 **HSV Thresholding:**
 The system isolates targets using HSV color space filtering before detection to handle varying lighting conditions.

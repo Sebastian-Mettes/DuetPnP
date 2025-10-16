@@ -1,0 +1,35 @@
+{
+  "camera_id": 0,
+  "name": "Lower/Upward Camera",
+  "orientation": "upward",
+  "description": "Upward-facing camera for viewing tool tips and held components",
+  "resolution": {
+    "width": 1280,
+    "height": 960
+  },
+  "fixed_offset": {
+    "x": 0.0,
+    "y": 0.0,
+    "description": "Manually determined camera offset from machine origin"
+  },
+  "machine_location": {
+    "x": 21.6,
+    "y": -59.7,
+    "z": 168.0,
+    "description": "XYZ coordinates where camera is mounted on machine"
+  },
+  "transform": {
+    "image_flip": "vertical",
+    "image_rotate": 180,
+    "pixel_to_mm": 0.015,
+    "pixel_x_to_machine_x": 0.0,
+    "pixel_x_to_machine_y": 1.0,
+    "pixel_y_to_machine_x": -1.0,
+    "pixel_y_to_machine_y": 0.0,
+    "description": "Transform from pixel space to machine coordinates. Looking up: pixel +X → machine +Y, pixel +Y → machine -X"
+  },
+  "led_control": {
+    "pin": "fan4",
+    "description": "Fan 4 controls lower camera ring light"
+  }
+}
