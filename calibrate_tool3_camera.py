@@ -113,7 +113,7 @@ def main():
             printer=printer,
             vision=vision_lower,
             camera_config=cam0_config,
-            detection_method=detect_target,
+            detection_method=detect_target(vision_lower),
             tolerance=2,
             max_iterations=20,
             feed_rate=1200,

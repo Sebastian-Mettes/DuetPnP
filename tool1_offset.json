@@ -1,0 +1,11 @@
+{
+  "tool": 1,
+  "existing_offset_x": 0,
+  "existing_offset_y": -71.695,
+  "existing_offset_z": -8.6,
+  "measured_correction_x": -1.14,
+  "measured_correction_y": 0.24,
+  "new_offset_x": 1.14,
+  "new_offset_y": -71.935,
+  "calibration_method": "camera centering"
+}
