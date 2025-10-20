@@ -550,6 +550,12 @@ def show_frame_with_overlay(frame: np.ndarray, detected_pos: Optional[Tuple[int,
         cv2.putText(display, text, (10, 30),
                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
+    # Create named window if it doesn't exist (helps on some systems like Raspberry Pi)
+    try:
+        cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    except:
+        pass
+
     cv2.imshow(window_name, display)
     cv2.waitKey(1)
 
