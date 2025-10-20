@@ -339,22 +339,22 @@ def calibrate_tool3_camera(printer: Printer, cam0_config: CameraConfig, cam2_con
 
         printer.control_led(0, True)
 
-        def detect_target(vision):
-            """Detection callback for target."""
-            frame = vision.capture_frame()
+        def detect_target_lower():
+            """Detection callback for target on lower camera."""
+            frame = vision_lower.capture_frame()
             if frame is None:
-                return None, None
-            circles = vision.find_circles(frame)
-            if circles is not None and len(circles) > 0:
-                center_x, center_y = circles[0][:2]
-                return {'X': center_x, 'Y': center_y}, None
-            return None, None
+                return None, None, None
+            target_pos = vision_lower.find_tool_position()  # Uses target vision params
+            if target_pos is not None:
+                x, y = target_pos
+                return {'X': x, 'Y': y}, None, frame
+            return None, None, frame
 
         success, final_pos = center_target_in_camera(
             printer=printer,
             vision=vision_lower,
             camera_config=cam0_config,
-            detection_method=detect_target,
+            detection_method=detect_target_lower,
             tolerance=2,
             max_iterations=20,
             feed_rate=1200,
@@ -411,11 +411,22 @@ def calibrate_tool3_camera(printer: Printer, cam0_config: CameraConfig, cam2_con
 
         printer.control_led(2, True)
 
+        def detect_target_upper():
+            """Detection callback for target on upper camera."""
+            frame = vision_upper.capture_frame()
+            if frame is None:
+                return None, None, None
+            target_pos = vision_upper.find_tool_position()  # Uses target vision params
+            if target_pos is not None:
+                x, y = target_pos
+                return {'X': x, 'Y': y}, None, frame
+            return None, None, frame
+
         success, final_pos_t3 = center_target_in_camera(
             printer=printer,
             vision=vision_upper,
             camera_config=cam2_config,
-            detection_method=detect_target,
+            detection_method=detect_target_upper,
             tolerance=2,
             max_iterations=20,
             feed_rate=1200,
