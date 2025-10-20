@@ -334,6 +334,48 @@ class Printer:
         self.send_gcode_command(f"G10 P{toolhead_number}", check=False)
         return self.parse_tool_offsets(self.response, toolhead_number)
 
+    def parse_axis_mapping(self, response: str) -> Dict[str, str]:
+        """
+        Parse M563 response to get tool axis mappings.
+
+        Example response: "Tool 0 - drives: 0; heaters (active/standby temps): 2 (0.0/0.0); xmap: X; ymap: Y; zmap: Z; fans: 0; no spindle; status: standby"
+
+        Args:
+            response: Response string from M563 command
+
+        Returns:
+            dict: Dictionary containing axis mappings (e.g., {'X': 'X', 'Y': 'Y', 'Z': 'Z'} or {'X': 'U', 'Y': 'V', 'Z': 'Z'})
+
+        Raises:
+            ValueError: If response is empty or invalid format
+        """
+        if not response:
+            raise ValueError("Empty response from M563 command")
+
+        mappings = {}
+        try:
+            # Look for xmap, ymap, zmap in the response
+            for mapping in ['xmap:', 'ymap:', 'zmap:']:
+                map_start = response.find(mapping)
+                if map_start != -1:
+                    # Get the character after "xmap: " etc
+                    axis_pos = map_start + len(mapping)
+                    while axis_pos < len(response) and response[axis_pos].isspace():
+                        axis_pos += 1
+                    if axis_pos < len(response):
+                        source_axis = mapping[0].upper()  # X, Y, or Z
+                        mapped_axis = response[axis_pos]  # What it maps to (X, Y, Z, U, V, etc)
+                        mappings[source_axis] = mapped_axis
+
+        except Exception as e:
+            raise ValueError(f"Error parsing M563 response: {str(e)}")
+
+        # Verify we got all required mappings
+        if not all(axis in mappings for axis in ['X', 'Y', 'Z']):
+            raise ValueError(f"Missing required axis mappings in M563 response. Got: {mappings}")
+
+        return mappings
+
     def get_current_position(self) -> Dict[str, float]:
         """Get current machine position."""
         self.wait_for_idle()
