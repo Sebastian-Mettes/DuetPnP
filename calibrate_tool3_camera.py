@@ -15,7 +15,9 @@ Usage:
 Requirements:
     - Target object (circular) placed at approximately (10, 10) on bed
     - Target should be ~1mm tall
-    - All vision parameters already calibrated for cameras and tools
+    - Vision parameters calibrated for target detection:
+      * vision_params_camera0_target.json (run: python generate_tool_vision_params.py 0 target)
+      * vision_params_camera2_target.json (run: python generate_tool_vision_params.py 2 target)
 """
 
 import time
@@ -96,24 +98,24 @@ def main():
         printer.control_led(0, True)  # Turn on lower camera LED
 
         # Center the target using generic centering function
-        def detect_target(vision):
-            """Detection callback for centering."""
-            frame = vision.capture_frame()
+        def detect_target_lower():
+            """Detection callback for target on lower camera."""
+            frame = vision_lower.capture_frame()
             if frame is None:
-                return None, None
-            # Use find_circles for target detection
-            circles = vision.find_circles(frame)
-            if circles is not None and len(circles) > 0:
-                center_x, center_y = circles[0][:2]
-                return {'X': center_x, 'Y': center_y}, None
-            return None, None
+                return None, None, None
+            # Use find_tool_position for target detection (uses vision_params_camera0_target.json)
+            target_pos = vision_lower.find_tool_position()
+            if target_pos is not None:
+                x, y = target_pos
+                return {'X': x, 'Y': y}, None, frame
+            return None, None, frame
 
         print("  Centering target in lower camera view...")
         success, final_pos = center_target_in_camera(
             printer=printer,
             vision=vision_lower,
             camera_config=cam0_config,
-            detection_method=detect_target(vision_lower),
+            detection_method=detect_target_lower,
             tolerance=2,
             max_iterations=20,
             feed_rate=1200,
@@ -180,12 +182,24 @@ def main():
         printer.control_led(2, True)  # Turn on upper camera LED
 
         # Center the target using Tool 3
+        def detect_target_upper():
+            """Detection callback for target on upper camera."""
+            frame = vision_upper.capture_frame()
+            if frame is None:
+                return None, None, None
+            # Use find_tool_position for target detection (uses vision_params_camera2_target.json)
+            target_pos = vision_upper.find_tool_position()
+            if target_pos is not None:
+                x, y = target_pos
+                return {'X': x, 'Y': y}, None, frame
+            return None, None, frame
+
         print("  Centering target in Tool 3 camera view...")
         success, final_pos_t3 = center_target_in_camera(
             printer=printer,
             vision=vision_upper,
             camera_config=cam2_config,
-            detection_method=detect_target,
+            detection_method=detect_target_upper,
             tolerance=2,
             max_iterations=20,
             feed_rate=1200,
