@@ -79,15 +79,23 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
             import cv2
             print("\nShowing camera preview...")
             print("Press 's' to start centering, or 'q' to quit")
+            print(f"[DEBUG] OpenCV version: {cv2.__version__}")
 
             preview_running = True
+            frame_count = 0
             while preview_running:
                 frame = vision.capture_frame()
+                frame_count += 1
+
                 if frame is not None:
+                    if frame_count == 1:
+                        print(f"[DEBUG] First frame captured: shape={frame.shape}, dtype={frame.dtype}")
+
                     tool_pos = vision.find_tool_position()
                     img_center = vision.get_image_center()
 
                     if tool_pos is not None:
+                        print(f"[DEBUG] Frame {frame_count}: Tool detected at {tool_pos}")
                         show_frame_with_overlay(
                             frame=frame,
                             detected_pos=(int(tool_pos[0]), int(tool_pos[1])),
@@ -96,6 +104,8 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
                             text="Tool Detected - Press 's' to start"
                         )
                     else:
+                        if frame_count % 10 == 1:  # Print every 10 frames
+                            print(f"[DEBUG] Frame {frame_count}: No tool detected")
                         show_frame_with_overlay(
                             frame=frame,
                             detected_pos=None,
@@ -104,15 +114,25 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
                             text="No Tool Detected - Press 's' anyway or 'q' to quit"
                         )
 
+                    if frame_count == 1:
+                        print("[DEBUG] show_frame_with_overlay called, cv2.waitKey about to be called")
+
                     key = cv2.waitKey(100) & 0xFF
                     if key == ord('s'):
+                        print("[DEBUG] 's' key pressed")
                         preview_running = False
                         cv2.destroyWindow("Camera Preview")
                     elif key == ord('q'):
+                        print("[DEBUG] 'q' key pressed")
                         print("\nCalibration cancelled by user")
                         printer.control_led(upward_cam, False)
                         vision.cleanup()
                         return False
+                    elif key != 255:  # 255 means no key pressed
+                        print(f"[DEBUG] Key pressed: {key}")
+                else:
+                    print(f"[DEBUG] Frame {frame_count}: Failed to capture frame")
+
                 time.sleep(0.05)
 
         # Define detection method for centering
