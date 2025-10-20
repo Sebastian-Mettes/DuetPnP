@@ -30,7 +30,7 @@ TARGET_PLACE_LOCATION = [110.0, 110.0, 0.0]  # For Tool 3 calibration
 TOOL3_CHECK_HEIGHT = 110.0
 
 
-def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: CameraConfig, skip_confirm: bool = False) -> bool:
+def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: CameraConfig, skip_confirm: bool = False, show_display: bool = True) -> bool:
     """
     Calibrate a basic tool (0, 1, or 2) using the lower camera.
 
@@ -39,6 +39,7 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
         tool_number: Tool number (0, 1, or 2)
         camera_config: Camera configuration for lower camera
         skip_confirm: Skip user confirmation
+        show_display: Show visual feedback window (default: True)
 
     Returns:
         bool: True if calibration successful
@@ -78,15 +79,17 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
             """Detection callback for centering."""
             frame = vision.capture_frame()
             if frame is None:
-                return None, None
+                return None, None, None
             tool_pos = vision.find_tool_position()
             if tool_pos is not None:
                 x, y = tool_pos
-                return {'X': x, 'Y': y}, None
-            return None, None
+                return {'X': x, 'Y': y}, None, frame
+            return None, None, frame
 
         # Center the tool in camera view
         print(f"\nCentering Tool {tool_number} in camera view...")
+        if show_display:
+            print("Visual feedback window enabled. Press 'q' to close window at any time.")
         success, final_pos = center_target_in_camera(
             printer=printer,
             vision=vision,
@@ -95,7 +98,8 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
             tolerance=2,
             max_iterations=20,
             feed_rate=1200,
-            debug=True
+            debug=True,
+            show_display=show_display
         )
 
         if not success:

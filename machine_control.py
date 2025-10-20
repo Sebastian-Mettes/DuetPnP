@@ -528,97 +528,159 @@ def center_target_in_camera(
     tolerance: int = 2,
     max_iterations: int = 20,
     feed_rate: int = 1200,
-    debug: bool = False
+    debug: bool = False,
+    show_display: bool = False
 ) -> Tuple[bool, Dict[str, float]]:
     """
     Generic centering algorithm using vision feedback.
-    
+
     Works for any vision-detected target:
     - Tool calibration (detection_method = vision.find_tool_position)
     - Component detection (detection_method = lambda: vision.find_component(template))
     - Any other centering task
-    
+
     Uses camera_config for coordinate transforms, eliminating hardcoded transforms.
-    
+
     Args:
         printer: Printer instance for motion control
         vision: VisionTools instance for detection
         camera_config: CameraConfig for coordinate transforms
-        detection_method: Callable that returns (x, y) pixel position or ((x,y), angle)
+        detection_method: Callable that returns (pos, angle, frame) or (pos, angle)
         tolerance: Pixels from center considered "centered" (default 2)
         max_iterations: Maximum centering attempts (default 20)
         feed_rate: Movement feed rate in mm/min (default 1200)
         debug: Enable verbose debug output (default False)
-    
+        show_display: Show visual feedback window (default False)
+
     Returns:
         (success: bool, final_position: Dict[str, float])
     """
     image_center = vision.get_image_center()
     iteration = 0
-    
+    window_name = "Centering Progress"
+
     if debug:
         print(f"Starting centering: tolerance={tolerance}px, max_iter={max_iterations}")
         print(f"Image center: {image_center}")
-    
-    while iteration < max_iterations:
-        # Detect target
-        result = detection_method()
-        
-        # Handle different return formats
-        if result is None or (isinstance(result, tuple) and result[0] is None):
-            if debug:
-                print(f"Iteration {iteration}: Target not detected")
-            iteration += 1
-            continue
-        
-        # Extract position (handle both (x,y) and ((x,y), angle) formats)
-        if isinstance(result, tuple) and len(result) == 2:
-            if isinstance(result[0], tuple):
-                # Format: ((x, y), angle)
-                detected_pos = result[0]
+
+    try:
+        while iteration < max_iterations:
+            # Detect target
+            result = detection_method()
+
+            # Handle different return formats: (pos, angle, frame) or (pos, angle) or (pos,)
+            frame = None
+            detected_pos = None
+
+            if result is None:
+                if debug:
+                    print(f"Iteration {iteration}: Target not detected")
+                iteration += 1
+                continue
+
+            if isinstance(result, tuple):
+                if len(result) == 3:
+                    # Format: (pos, angle, frame)
+                    detected_pos, _, frame = result
+                elif len(result) == 2:
+                    # Could be (pos, angle) or (x, y)
+                    if isinstance(result[0], (dict, tuple)):
+                        # Format: (pos, angle)
+                        detected_pos = result[0]
+                    else:
+                        # Format: (x, y)
+                        detected_pos = result
+
+            if detected_pos is None:
+                if debug:
+                    print(f"Iteration {iteration}: Could not parse detection result")
+                iteration += 1
+                continue
+
+            # Extract x, y from detected position (handle dict or tuple)
+            if isinstance(detected_pos, dict):
+                x_pixel = detected_pos.get('X')
+                y_pixel = detected_pos.get('Y')
+            elif isinstance(detected_pos, tuple) and len(detected_pos) == 2:
+                x_pixel, y_pixel = detected_pos
             else:
-                # Format: (x, y)
-                detected_pos = result
-        else:
+                if debug:
+                    print(f"Iteration {iteration}: Unexpected position format: {detected_pos}")
+                iteration += 1
+                continue
+
+            # Calculate pixel offsets from center
+            x_pixel_offset = image_center[0] - x_pixel
+            y_pixel_offset = image_center[1] - y_pixel
+
+            # Show visual feedback if enabled
+            if show_display and frame is not None:
+                status_text = f"Iter {iteration+1}/{max_iterations} | Offset: ({x_pixel_offset:.1f}, {y_pixel_offset:.1f})px"
+                show_frame_with_overlay(
+                    frame=frame,
+                    detected_pos=(int(x_pixel), int(y_pixel)),
+                    center_pos=(int(image_center[0]), int(image_center[1])),
+                    window_name=window_name,
+                    text=status_text
+                )
+                # Check for 'q' key to quit
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    print("\nDisplay closed by user")
+                    cv2.destroyWindow(window_name)
+                    final_pos = printer.get_current_position()
+                    return (False, final_pos)
+
+            # Check if centered
+            if abs(x_pixel_offset) <= tolerance and abs(y_pixel_offset) <= tolerance:
+                if debug:
+                    print(f"Target centered! Final offset: ({x_pixel_offset}, {y_pixel_offset}) pixels")
+                if show_display:
+                    # Show final centered frame for 1 second
+                    if frame is not None:
+                        show_frame_with_overlay(
+                            frame=frame,
+                            detected_pos=(int(x_pixel), int(y_pixel)),
+                            center_pos=(int(image_center[0]), int(image_center[1])),
+                            window_name=window_name,
+                            text="CENTERED!"
+                        )
+                        cv2.waitKey(1000)
+                    cv2.destroyWindow(window_name)
+                final_pos = printer.get_current_position()
+                return (True, final_pos)
+
+            # Transform pixel offsets to machine movements using camera config
+            x_move, y_move = camera_config.pixel_to_machine_movement(
+                x_pixel_offset, y_pixel_offset
+            )
+
+            # Get current position and calculate new position
+            current_pos = printer.get_current_position()
+            new_x = current_pos['X'] + x_move
+            new_y = current_pos['Y'] + y_move
+
+            # Move to new position
+            printer.linear_move(x=new_x, y=new_y, feed_rate=feed_rate)
+
             if debug:
-                print(f"Unexpected detection result format: {result}")
+                print(f"Iteration {iteration}: pixel_offset=({x_pixel_offset:.1f}, {y_pixel_offset:.1f}), "
+                      f"move=({x_move:.3f}, {y_move:.3f})mm")
+
+            # Small delay for movement completion
+            time.sleep(0.8)
             iteration += 1
-            continue
-        
-        x_pixel, y_pixel = detected_pos
-        
-        # Calculate pixel offsets from center
-        x_pixel_offset = image_center[0] - x_pixel
-        y_pixel_offset = image_center[1] - y_pixel
-        
-        # Check if centered
-        if abs(x_pixel_offset) <= tolerance and abs(y_pixel_offset) <= tolerance:
-            if debug:
-                print(f"Target centered! Final offset: ({x_pixel_offset}, {y_pixel_offset}) pixels")
-            final_pos = printer.get_current_position()
-            return (True, final_pos)
-        
-        # Transform pixel offsets to machine movements using camera config
-        x_move, y_move = camera_config.pixel_to_machine_movement(
-            x_pixel_offset, y_pixel_offset
-        )
-        
-        # Get current position and calculate new position
-        current_pos = printer.get_current_position()
-        new_x = current_pos['X'] + x_move
-        new_y = current_pos['Y'] + y_move
-        
-        # Move to new position
-        printer.linear_move(x=new_x, y=new_y, feed_rate=feed_rate)
-        
-        if debug:
-            print(f"Iteration {iteration}: pixel_offset=({x_pixel_offset:.1f}, {y_pixel_offset:.1f}), "
-                  f"move=({x_move:.3f}, {y_move:.3f})mm")
-        
-        # Small delay for movement completion
-        time.sleep(0.8)
-        iteration += 1
-    
-    print(f"Failed to center after {max_iterations} iterations")
-    final_pos = printer.get_current_position()
-    return (False, final_pos)
+
+        print(f"Failed to center after {max_iterations} iterations")
+        if show_display:
+            cv2.destroyWindow(window_name)
+        final_pos = printer.get_current_position()
+        return (False, final_pos)
+
+    except Exception as e:
+        # Clean up display on error
+        if show_display:
+            try:
+                cv2.destroyWindow(window_name)
+            except:
+                pass
+        raise e
