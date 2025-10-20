@@ -28,7 +28,7 @@ from machine_control import Printer, center_target_in_camera
 # Configuration
 TARGET_PICKUP_LOCATION = [10.0, 10.0, 1.0]  # X, Y, Z where target sits on bed
 TARGET_PLACE_LOCATION = [110.0, 110.0, 0.0]  # Known placement location
-TOOL3_CHECK_HEIGHT = 110.0  # Z height for Tool 3 to check target
+TOOL3_CHECK_HEIGHT = 158.0  # Z height for Tool 3 to check target
 
 
 def main():
@@ -111,6 +111,7 @@ def main():
             return None, None, frame
 
         print("  Centering target in lower camera view...")
+        print("  Visual feedback window will show camera view. Press 'q' to abort.")
         success, final_pos = center_target_in_camera(
             printer=printer,
             vision=vision_lower,
@@ -119,7 +120,8 @@ def main():
             tolerance=2,
             max_iterations=20,
             feed_rate=1200,
-            debug=True
+            debug=True,
+            show_display=True
         )
 
         if not success:
@@ -195,6 +197,7 @@ def main():
             return None, None, frame
 
         print("  Centering target in Tool 3 camera view...")
+        print("  Visual feedback window will show camera view. Press 'q' to abort.")
         success, final_pos_t3 = center_target_in_camera(
             printer=printer,
             vision=vision_upper,
@@ -203,7 +206,8 @@ def main():
             tolerance=2,
             max_iterations=20,
             feed_rate=1200,
-            debug=True
+            debug=True,
+            show_display=True
         )
 
         if not success:
