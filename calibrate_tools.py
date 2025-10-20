@@ -75,15 +75,22 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
         printer.wait_for_idle()
 
         # Define detection method for centering
+        debug_mode = True  # Enable debug for centering
         def detect_tool():
             """Detection callback for centering."""
             frame = vision.capture_frame()
             if frame is None:
+                if debug_mode:
+                    print("  [detect_tool] Failed to capture frame")
                 return None, None, None
             tool_pos = vision.find_tool_position()
             if tool_pos is not None:
                 x, y = tool_pos
+                if debug_mode:
+                    print(f"  [detect_tool] Tool detected at ({x}, {y}), frame shape: {frame.shape}")
                 return {'X': x, 'Y': y}, None, frame
+            if debug_mode:
+                print(f"  [detect_tool] No tool detected, frame shape: {frame.shape}")
             return None, None, frame
 
         # Center the tool in camera view
@@ -98,7 +105,7 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
             tolerance=2,
             max_iterations=20,
             feed_rate=1200,
-            debug=True,
+            debug=debug_mode,
             show_display=show_display
         )
 
