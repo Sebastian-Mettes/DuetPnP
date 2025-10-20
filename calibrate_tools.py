@@ -187,41 +187,43 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
 
         print(f"✓ Tool {tool_number} centered at machine position: X{final_pos['X']:.2f}, Y{final_pos['Y']:.2f}")
 
-        # Get current position and query existing tool offset
+        # Get axis mappings for this tool (e.g., X->U, Y->V for some tools)
+        printer.send_gcode_command(f"M563 P{tool_number}", check=False)
+        axis_maps = printer.parse_axis_mapping(printer.response)
+        print(f"\n  Axis mappings for Tool {tool_number}: {axis_maps}")
+
+        # Get current position
         printer.send_gcode_command("M114", check=False)
         current_pos = printer.parse_position(printer.response)
 
-        try:
-            existing_offsets = printer.get_tool_offsets(tool_number)
-            existing_offset_x = existing_offsets.get('X', 0.0)
-            existing_offset_y = existing_offsets.get('Y', 0.0)
-            existing_offset_z = existing_offsets.get('Z', 0.0)
-            print(f"\n  Current Tool {tool_number} offset from firmware:")
-            print(f"    X: {existing_offset_x:+.3f} mm")
-            print(f"    Y: {existing_offset_y:+.3f} mm")
-            print(f"    Z: {existing_offset_z:+.3f} mm")
-        except Exception as e:
-            print(f"  Warning: Could not read existing offset: {e}")
-            existing_offset_x = 0.0
-            existing_offset_y = 0.0
-            existing_offset_z = 0.0
+        # Get current tool offsets
+        printer.send_gcode_command(f"G10 P{tool_number}", check=False)
+        current_offsets = printer.parse_tool_offsets(printer.response, tool_number)
 
-        # Calculate new offset
-        # New offset = existing offset - (current_pos - camera_loc)
-        correction_x = current_pos['X'] - camera_loc[0]
-        correction_y = current_pos['Y'] - camera_loc[1]
+        print(f"\n  Current offsets from firmware:")
+        for axis, value in sorted(current_offsets.items()):
+            print(f"    {axis}: {value:+.3f} mm")
 
-        new_offset_x = existing_offset_x - correction_x
-        new_offset_y = existing_offset_y - correction_y
+        # Calculate new offsets using mapped axes (like old calibration.py)
+        # For each source axis (X, Y, Z), calculate difference and apply to mapped axis
+        expected_position = [camera_loc[0], camera_loc[1], camera_loc[2]]  # [X, Y, Z]
+        new_offsets = {}
 
-        print(f"\n  Measured correction:")
-        print(f"    X: {correction_x:+.3f} mm")
-        print(f"    Y: {correction_y:+.3f} mm")
+        for source_axis, mapped_axis in axis_maps.items():
+            # Get the index for X, Y, or Z (0, 1, or 2)
+            axis_index = 'XYZ'.index(source_axis)
+            # Calculate the difference in the source axis (X, Y, or Z)
+            source_diff = current_pos[source_axis] - expected_position[axis_index]
+            # Add this difference to the current offset of the mapped axis
+            new_offsets[mapped_axis] = current_offsets[mapped_axis] - source_diff
 
-        print(f"\n  New offset (for G10 command):")
-        print(f"    X: {new_offset_x:+.3f} mm")
-        print(f"    Y: {new_offset_y:+.3f} mm")
-        print(f"    Z: {existing_offset_z:+.3f} mm (unchanged)")
+        print(f"\n  Calculated position differences (source coordinates):")
+        print(f"    X: {current_pos['X'] - expected_position[0]:+.3f} mm")
+        print(f"    Y: {current_pos['Y'] - expected_position[1]:+.3f} mm")
+
+        print(f"\n  New offsets (mapped to physical axes):")
+        for axis, value in sorted(new_offsets.items()):
+            print(f"    {axis}: {value:+.3f} mm")
 
         # Apply offset
         if not skip_confirm:
@@ -230,14 +232,17 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
             response = 'y'
 
         if response == 'y':
+            # Build G10 command with mapped axes
+            offset_params = ' '.join(f"{axis}{value:.3f}" for axis, value in sorted(new_offsets.items()))
             printer.send_gcode_command(
-                f"G10 P{tool_number} X{new_offset_x:.3f} Y{new_offset_y:.3f} Z{existing_offset_z:.3f}",
+                f"G10 P{tool_number} {offset_params}",
                 check=False
             )
             print(f"✓ Tool {tool_number} offset applied to firmware")
         else:
+            offset_params = ' '.join(f"{axis}{value:.3f}" for axis, value in sorted(new_offsets.items()))
             print(f"  Offset not applied - you can manually apply it later with:")
-            print(f"    G10 P{tool_number} X{new_offset_x:.3f} Y{new_offset_y:.3f} Z{existing_offset_z:.3f}")
+            print(f"    G10 P{tool_number} {offset_params}")
 
         # Save to file
         offset_data = {
