@@ -74,6 +74,47 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
         printer.control_led(upward_cam, True)  # Turn on upward camera LED
         printer.wait_for_idle()
 
+        # Show live preview before centering starts
+        if show_display:
+            import cv2
+            print("\nShowing camera preview...")
+            print("Press 's' to start centering, or 'q' to quit")
+
+            preview_running = True
+            while preview_running:
+                frame = vision.capture_frame()
+                if frame is not None:
+                    tool_pos = vision.find_tool_position()
+                    img_center = vision.get_image_center()
+
+                    if tool_pos is not None:
+                        show_frame_with_overlay(
+                            frame=frame,
+                            detected_pos=(int(tool_pos[0]), int(tool_pos[1])),
+                            center_pos=(int(img_center[0]), int(img_center[1])),
+                            window_name="Camera Preview",
+                            text="Tool Detected - Press 's' to start"
+                        )
+                    else:
+                        show_frame_with_overlay(
+                            frame=frame,
+                            detected_pos=None,
+                            center_pos=(int(img_center[0]), int(img_center[1])),
+                            window_name="Camera Preview",
+                            text="No Tool Detected - Press 's' anyway or 'q' to quit"
+                        )
+
+                    key = cv2.waitKey(100) & 0xFF
+                    if key == ord('s'):
+                        preview_running = False
+                        cv2.destroyWindow("Camera Preview")
+                    elif key == ord('q'):
+                        print("\nCalibration cancelled by user")
+                        printer.control_led(upward_cam, False)
+                        vision.cleanup()
+                        return False
+                time.sleep(0.05)
+
         # Define detection method for centering
         debug_mode = True  # Enable debug for centering
         def detect_tool():
