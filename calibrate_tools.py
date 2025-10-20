@@ -244,17 +244,17 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
             print(f"  Offset not applied - you can manually apply it later with:")
             print(f"    G10 P{tool_number} {offset_params}")
 
-        # Save to file
+        # Save to file with axis mapping information
         offset_data = {
             "tool": tool_number,
-            "existing_offset_x": round(existing_offset_x, 3),
-            "existing_offset_y": round(existing_offset_y, 3),
-            "existing_offset_z": round(existing_offset_z, 3),
-            "measured_correction_x": round(correction_x, 3),
-            "measured_correction_y": round(correction_y, 3),
-            "new_offset_x": round(new_offset_x, 3),
-            "new_offset_y": round(new_offset_y, 3),
-            "calibration_method": "camera centering"
+            "axis_mappings": axis_maps,
+            "current_offsets": {k: round(v, 3) for k, v in current_offsets.items()},
+            "new_offsets": {k: round(v, 3) for k, v in new_offsets.items()},
+            "position_difference_X": round(current_pos['X'] - expected_position[0], 3),
+            "position_difference_Y": round(current_pos['Y'] - expected_position[1], 3),
+            "expected_position": expected_position,
+            "actual_position": [current_pos['X'], current_pos['Y'], current_pos['Z']],
+            "calibration_method": "camera centering with axis mapping"
         }
 
         output_file = f"tool{tool_number}_offset.json"
