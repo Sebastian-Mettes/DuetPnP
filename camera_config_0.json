@@ -19,12 +19,12 @@
     "description": "XYZ coordinates where camera is mounted on machine"
   },
   "transform": {
-    "image_flip": "vertical",
-    "image_rotate": 180,
+    "image_flip": "vertcal",
+    "image_rotate": 90,
     "pixel_to_mm": 0.015,
     "pixel_x_to_machine_x": 0.0,
     "pixel_x_to_machine_y": 1.0,
-    "pixel_y_to_machine_x": -1.0,
+    "pixel_y_to_machine_x": 1.0,
     "pixel_y_to_machine_y": 0.0,
     "description": "Transform from pixel space to machine coordinates. Looking up: pixel +X → machine +Y, pixel +Y → machine -X"
   },

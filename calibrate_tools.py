@@ -74,12 +74,12 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
         printer.wait_for_idle()
 
         # Define detection method for centering
-        def detect_tool(vis):
+        def detect_tool():
             """Detection callback for centering."""
-            frame = vis.capture_frame()
+            frame = vision.capture_frame()
             if frame is None:
                 return None, None
-            tool_pos = vis.find_tool_position()
+            tool_pos = vision.find_tool_position()
             if tool_pos is not None:
                 x, y = tool_pos
                 return {'X': x, 'Y': y}, None
