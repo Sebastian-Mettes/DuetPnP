@@ -21,7 +21,7 @@ import sys
 import argparse
 import time
 import json
-from machine_vision import VisionTools, CameraConfig, load_camera_config, show_frame_with_overlay
+from machine_vision import VisionTools, CameraConfig, load_camera_config
 from machine_control import Printer, center_target_in_camera
 
 # Configuration
@@ -81,6 +81,10 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
             print("Press 's' to start centering, or 'q' to quit")
             print(f"[DEBUG] OpenCV version: {cv2.__version__}")
 
+            # Create window ONCE before loop (like generate_tool_vision_params.py)
+            window_name = "Camera Preview"
+            cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+
             preview_running = True
             frame_count = 0
             while preview_running:
@@ -94,28 +98,33 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
                     tool_pos = vision.find_tool_position()
                     img_center = vision.get_image_center()
 
+                    # Draw directly like generate_tool_vision_params.py
+                    display = frame.copy()
+
+                    # Draw center crosshair
+                    cx, cy = img_center
+                    cv2.line(display, (cx-20, cy), (cx+20, cy), (255, 0, 0), 2)
+                    cv2.line(display, (cx, cy-20), (cx, cy+20), (255, 0, 0), 2)
+
                     if tool_pos is not None:
                         print(f"[DEBUG] Frame {frame_count}: Tool detected at {tool_pos}")
-                        show_frame_with_overlay(
-                            frame=frame,
-                            detected_pos=(int(tool_pos[0]), int(tool_pos[1])),
-                            center_pos=(int(img_center[0]), int(img_center[1])),
-                            window_name="Camera Preview",
-                            text="Tool Detected - Press 's' to start"
-                        )
+                        # Draw detected tool
+                        x, y = int(tool_pos[0]), int(tool_pos[1])
+                        cv2.circle(display, (x, y), 20, (0, 255, 0), 3)
+                        cv2.circle(display, (x, y), 2, (0, 0, 255), -1)
+                        cv2.putText(display, "Tool Detected - Press 's' to start", (10, 30),
+                                   cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                     else:
                         if frame_count % 10 == 1:  # Print every 10 frames
                             print(f"[DEBUG] Frame {frame_count}: No tool detected")
-                        show_frame_with_overlay(
-                            frame=frame,
-                            detected_pos=None,
-                            center_pos=(int(img_center[0]), int(img_center[1])),
-                            window_name="Camera Preview",
-                            text="No Tool Detected - Press 's' anyway or 'q' to quit"
-                        )
+                        cv2.putText(display, "No Tool Detected - Press 's' or 'q'", (10, 30),
+                                   cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+                    # Show frame directly (like generate_tool_vision_params.py)
+                    cv2.imshow(window_name, display)
 
                     if frame_count == 1:
-                        print("[DEBUG] show_frame_with_overlay called, cv2.waitKey about to be called")
+                        print("[DEBUG] cv2.imshow called directly, cv2.waitKey about to be called")
 
                     key = cv2.waitKey(100) & 0xFF
                     if key == ord('s'):
