@@ -223,69 +223,72 @@ def main():
         print("\nStep 5: Calculating Tool 3 offset")
         print("-" * 60)
 
-        # Query existing tool offset from firmware
-        try:
-            existing_offsets = printer.get_tool_offsets(3)
-            existing_offset_x = existing_offsets.get('X', 0.0)
-            existing_offset_y = existing_offsets.get('Y', 0.0)
-            print(f"  Current Tool 3 offset from firmware (G10 P3):")
-            print(f"    X: {existing_offset_x:+.3f} mm")
-            print(f"    Y: {existing_offset_y:+.3f} mm")
-        except Exception as e:
-            print(f"  Warning: Could not read existing offset from firmware: {e}")
-            print(f"  Using zero as existing offset")
-            existing_offset_x = 0.0
-            existing_offset_y = 0.0
+        # Get axis mappings for Tool 3 (e.g., X->U, Y->V for some tools)
+        printer.send_gcode_command("M563 P3", check=False)
+        axis_maps = printer.parse_axis_mapping(printer.response)
+        print(f"\n  Axis mappings for Tool 3: {axis_maps}")
 
-        # Tool 3 measured correction is the difference between where we think we are
-        # (TARGET_PLACE_LOCATION) and where we actually are (final_pos_t3)
-        correction_x = final_pos_t3['X'] - TARGET_PLACE_LOCATION[0]
-        correction_y = final_pos_t3['Y'] - TARGET_PLACE_LOCATION[1]
+        # Get current tool offsets from firmware
+        printer.send_gcode_command("G10 P3", check=False)
+        current_offsets = printer.parse_tool_offsets(printer.response, 3)
 
-        print(f"\n  Measured correction from calibration:")
-        print(f"    X: {correction_x:+.3f} mm")
-        print(f"    Y: {correction_y:+.3f} mm")
+        print(f"\n  Current offsets from firmware:")
+        for axis, value in sorted(current_offsets.items()):
+            print(f"    {axis}: {value:+.3f} mm")
 
-        # New offset = existing offset - correction
-        # (We subtract because if we're measuring +0.5mm too far, we need -0.5mm offset)
-        new_offset_x = existing_offset_x - correction_x
-        new_offset_y = existing_offset_y - correction_y
+        # Calculate new offsets using mapped axes (same approach as calibrate_tools.py)
+        # Expected position is where we placed the target
+        expected_position = [TARGET_PLACE_LOCATION[0], TARGET_PLACE_LOCATION[1], TOOL3_CHECK_HEIGHT]  # [X, Y, Z]
+        new_offsets = {}
 
-        print(f"\n  New offset (for G10 command):")
-        print(f"    X: {new_offset_x:+.3f} mm")
-        print(f"    Y: {new_offset_y:+.3f} mm")
+        for source_axis, mapped_axis in axis_maps.items():
+            # Get the index for X, Y, or Z (0, 1, or 2)
+            axis_index = 'XYZ'.index(source_axis)
+            # Calculate the difference in the source axis (X, Y, or Z)
+            source_diff = final_pos_t3[source_axis] - expected_position[axis_index]
+            # Add this difference to the current offset of the mapped axis
+            new_offsets[mapped_axis] = current_offsets[mapped_axis] - source_diff
 
-        # Save to file
+        print(f"\n  Calculated position differences (source coordinates):")
+        print(f"    X: {final_pos_t3['X'] - expected_position[0]:+.3f} mm")
+        print(f"    Y: {final_pos_t3['Y'] - expected_position[1]:+.3f} mm")
+
+        print(f"\n  New offsets (mapped to physical axes):")
+        for axis, value in sorted(new_offsets.items()):
+            print(f"    {axis}: {value:+.3f} mm")
+
+        # Apply offset
+        response = input("\nApply new offset to Tool 3? [y/N]: ").strip().lower()
+        if response == 'y':
+            # Build G10 command with mapped axes
+            offset_params = ' '.join(f"{axis}{value:.3f}" for axis, value in sorted(new_offsets.items()))
+            printer.send_gcode_command(
+                f"G10 P3 {offset_params}",
+                check=False
+            )
+            print(f"✓ Tool 3 offset applied to firmware")
+        else:
+            offset_params = ' '.join(f"{axis}{value:.3f}" for axis, value in sorted(new_offsets.items()))
+            print(f"  Offset not applied - you can manually apply it later with:")
+            print(f"    G10 P3 {offset_params}")
+
+        # Save to file with axis mapping information
         offset_data = {
             "tool": 3,
-            "description": "Tool 3 (downward camera) offset calibration results",
-            "existing_offset_x": round(existing_offset_x, 3),
-            "existing_offset_y": round(existing_offset_y, 3),
-            "measured_correction_x": round(correction_x, 3),
-            "measured_correction_y": round(correction_y, 3),
-            "new_offset_x": round(new_offset_x, 3),
-            "new_offset_y": round(new_offset_y, 3),
-            "calibration_method": "PnP target placement",
-            "target_location": TARGET_PLACE_LOCATION,
-            "measured_location": [final_pos_t3['X'], final_pos_t3['Y']]
+            "axis_mappings": axis_maps,
+            "current_offsets": {k: round(v, 3) for k, v in current_offsets.items()},
+            "new_offsets": {k: round(v, 3) for k, v in new_offsets.items()},
+            "position_difference_X": round(final_pos_t3['X'] - expected_position[0], 3),
+            "position_difference_Y": round(final_pos_t3['Y'] - expected_position[1], 3),
+            "expected_position": expected_position,
+            "actual_position": [final_pos_t3['X'], final_pos_t3['Y'], final_pos_t3.get('Z', TOOL3_CHECK_HEIGHT)],
+            "calibration_method": "PnP target placement with axis mapping"
         }
 
         output_file = "tool3_offset.json"
         with open(output_file, 'w') as f:
             json.dump(offset_data, f, indent=2)
-
-        print(f"\n✓ Tool 3 offset saved to {output_file}")
-
-        # Update tool offset in RRF (optional)
-        response = input("\nApply new offset to Tool 3 in firmware? [y/N]: ").strip().lower()
-        if response == 'y':
-            # Send G10 command to set tool offset
-            printer.send_gcode_command(f"G10 P3 X{new_offset_x:.3f} Y{new_offset_y:.3f}", check=False)
-            print("✓ Tool offset applied to firmware")
-            print(f"  Command sent: G10 P3 X{new_offset_x:.3f} Y{new_offset_y:.3f}")
-        else:
-            print("  Offset not applied - you can manually apply it later with:")
-            print(f"    G10 P3 X{new_offset_x:.3f} Y{new_offset_y:.3f}")
+        print(f"✓ Tool 3 offset saved to {output_file}")
 
         print("\n" + "="*60)
         print("✓ Tool 3 calibration complete!")

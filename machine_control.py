@@ -103,7 +103,7 @@ class Printer:
         # Load all available camera configs (try common camera numbers)
         for cam_num in [0, 1, 2, 3]:
             try:
-                config_path = f"camera_config_{cam_num}.json"
+                config_path = f"config/camera_config_{cam_num}.json"
                 with open(config_path, 'r') as f:
                     camera_config = json.load(f)
 
@@ -147,7 +147,7 @@ class Printer:
         Loads vacuum pin, solenoid pin, and other machine-specific settings.
         """
         try:
-            with open('machine_config.json', 'r') as f:
+            with open('config/machine_config.json', 'r') as f:
                 machine_config = json.load(f)
 
             # Load vacuum settings
@@ -166,7 +166,7 @@ class Printer:
                 print(f"Loaded machine config: vacuum={self.vacuum_pin}, solenoid={self.solenoid_pin}")
 
         except FileNotFoundError:
-            print("Warning: machine_config.json not found, using defaults")
+            print("Warning: config/machine_config.json not found, using defaults")
             self.vacuum_pin = 'fan1'
             self.vacuum_on_value = 40
             self.vacuum_off_value = 0

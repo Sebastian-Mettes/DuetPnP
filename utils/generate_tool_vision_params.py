@@ -25,7 +25,13 @@ import cv2
 import numpy as np
 import json
 import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from machine_vision import VisionTools, load_camera_config
+from machine_control import Printer
 
 
 def calibrate_tool_vision(camera_number: int, tool_number: int):
@@ -36,7 +42,7 @@ def calibrate_tool_vision(camera_number: int, tool_number: int):
         camera_number: Camera ID (0, 2, etc.)
         tool_number: Tool number (0, 1, 2, etc.)
     """
-    output_file = f"vision_params_camera{camera_number}_tool{tool_number}.json"
+    output_file = f"config/vision_params_camera{camera_number}_tool{tool_number}.json"
 
     print("="*60)
     print(f"Tool Vision Parameters Calibration")
@@ -71,6 +77,14 @@ def calibrate_tool_vision(camera_number: int, tool_number: int):
     except:
         print(f"Warning: Could not load camera config for camera {camera_number}")
         camera_config = None
+
+    # Initialize printer connection for LED control
+    print("Initializing printer connection for LED control...")
+    printer = Printer(upward_camera_number=0, debug=False)
+
+    # Turn on LED for this camera
+    print(f"Turning on LED for camera {camera_number}...")
+    printer.control_led(camera_number, True)
 
     # Initialize vision with camera config
     vision = VisionTools(camera_number, target='tool', tool_number=tool_number,
@@ -188,6 +202,10 @@ def calibrate_tool_vision(camera_number: int, tool_number: int):
                 break
 
     finally:
+        # Turn off LED
+        print(f"Turning off LED for camera {camera_number}...")
+        printer.control_led(camera_number, False)
+        printer.close()
         cv2.destroyAllWindows()
         vision.cleanup()
 
@@ -199,7 +217,7 @@ def calibrate_target_vision(camera_number: int):
     Args:
         camera_number: Camera ID (0, 2, etc.)
     """
-    output_file = f"vision_params_camera{camera_number}_target.json"
+    output_file = f"config/vision_params_camera{camera_number}_target.json"
 
     print("="*60)
     print(f"Target Vision Parameters Calibration")
@@ -234,6 +252,14 @@ def calibrate_target_vision(camera_number: int):
     except:
         print(f"Warning: Could not load camera config for camera {camera_number}")
         camera_config = None
+
+    # Initialize printer connection for LED control
+    print("Initializing printer connection for LED control...")
+    printer = Printer(upward_camera_number=0, debug=False)
+
+    # Turn on LED for this camera
+    print(f"Turning on LED for camera {camera_number}...")
+    printer.control_led(camera_number, True)
 
     # Initialize vision with camera config
     vision = VisionTools(camera_number, target='target', camera_config=camera_config)
@@ -351,6 +377,10 @@ def calibrate_target_vision(camera_number: int):
                 break
 
     finally:
+        # Turn off LED
+        print(f"Turning off LED for camera {camera_number}...")
+        printer.control_led(camera_number, False)
+        printer.close()
         cv2.destroyAllWindows()
         vision.cleanup()
 

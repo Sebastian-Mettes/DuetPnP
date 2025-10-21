@@ -260,7 +260,7 @@ class VisionTools:
         """Get image center coordinates."""
         return self.IMAGE_CENTER
 
-    def find_component(self, template_path: str, angle: int = 0) -> Tuple[Optional[Tuple[int, int]], Optional[int]]:
+    def find_component(self, template_path: str, angle: int = 0, exact_angle: bool = False) -> Tuple[Optional[Tuple[int, int]], Optional[int]]:
         """
         Find component in camera frame using template matching.
         Uses coarse-to-fine search for better performance.
@@ -268,6 +268,8 @@ class VisionTools:
         Args:
             template_path: Path to template image file
             angle: Expected angle offset in degrees
+            exact_angle: If True, only check at the specified angle (no angular search).
+                        Much faster when component orientation is already known.
 
         Returns:
             ((center_x, center_y), rotation_angle) if found, (None, None) otherwise
@@ -309,7 +311,12 @@ class VisionTools:
         best_template_shape = None
 
         # Stage 1: Coarse search (5-degree steps, downsampled)
-        coarse_angles = list(range(-15 + angle, 16 + angle, 5))
+        # If exact_angle=True, only check the specified angle (much faster!)
+        if exact_angle:
+            coarse_angles = [angle]  # Single angle only
+        else:
+            coarse_angles = list(range(-15 + angle, 16 + angle, 5))  # Full search
+
         coarse_best_angle = 0
         coarse_best_score = -1
 
@@ -337,10 +344,15 @@ class VisionTools:
                 break
 
         # Stage 2: Fine search (2-degree steps, full resolution)
-        fine_start = coarse_best_angle - 6
-        fine_end = coarse_best_angle + 6
+        # If exact_angle=True, skip fine search (already checked exact angle)
+        if exact_angle:
+            fine_angles = [angle]  # Single angle only
+        else:
+            fine_start = coarse_best_angle - 6
+            fine_end = coarse_best_angle + 6
+            fine_angles = range(fine_start, fine_end + 1, 2)
 
-        for test_angle in range(fine_start, fine_end + 1, 2):
+        for test_angle in fine_angles:
             h, w = template.shape
             matrix = cv2.getRotationMatrix2D((w/2, h/2), test_angle, 1.0)
 
@@ -388,9 +400,9 @@ class VisionTools:
         """
         # Load parameters from file
         if self.tool_number is not None:
-            params_file = f"vision_params_camera{self.camera_number}_tool{self.tool_number}.json"
+            params_file = f"config/vision_params_camera{self.camera_number}_tool{self.tool_number}.json"
         else:
-            params_file = f"vision_params_camera{self.camera_number}_{self.target}.json"
+            params_file = f"config/vision_params_camera{self.camera_number}_{self.target}.json"
 
         try:
             with open(params_file, 'r') as f:
@@ -570,5 +582,5 @@ def load_camera_config(camera_number: int) -> CameraConfig:
     Returns:
         CameraConfig instance
     """
-    config_file = f"camera_config_{camera_number}.json"
+    config_file = f"config/camera_config_{camera_number}.json"
     return CameraConfig(config_file)

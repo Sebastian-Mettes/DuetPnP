@@ -16,9 +16,19 @@ The codebase has been **completely refactored** into a clean, modular structure.
 ├── machine_control.py         # All machine control (Printer, Feeder, centering)
 ├── pnp_operations.py          # PnP workflow (ConfigManager, PnPWorkflow)
 ├── run_pnp_task.py           # Main entry point
-├── camera_config_0.json      # Camera 0 configuration & transforms
-├── camera_config_2.json      # Camera 2 configuration & transforms
-├── generate_tool_vision_params.py  # Vision parameter calibration tool
+├── calibrate_tools.py        # Tool calibration script
+├── config/                   # All configuration files
+│   ├── camera_config_0.json      # Camera 0 configuration & transforms
+│   ├── camera_config_2.json      # Camera 2 configuration & transforms
+│   ├── machine_config.json       # Machine settings (vacuum, solenoid pins)
+│   ├── placement_config.json     # Component placement configuration
+│   ├── vision_params_*.json      # Vision parameters for each camera/tool
+│   ├── tool*_offset.json         # Tool calibration results
+│   └── camera_offset.json        # Camera offset calibration
+├── utils/                    # Utility/helper scripts
+│   └── generate_tool_vision_params.py  # Vision parameter calibration tool
+├── templates/                # Component template images
+├── images/                   # Reference images
 └── old_implementation/       # ⚠️ OLD CODE - DO NOT MODIFY
     ├── vision_tools.py       # (archived)
     ├── calibration.py        # (archived)
@@ -40,9 +50,9 @@ The codebase has been **completely refactored** into a clean, modular structure.
    - Works for tool calibration AND component detection
 
 3. **Tool-Specific Vision Parameters**: Per-(camera, tool) calibration
-   - Format: `vision_params_camera{N}_tool{T}.json`
+   - Format: `config/vision_params_camera{N}_tool{T}.json`
    - Eliminates parameter sharing across tools
-   - Use `generate_tool_vision_params.py` to create
+   - Use `utils/generate_tool_vision_params.py` to create
 
 4. **Clean Separation of Concerns**:
    - `machine_vision.py` → "How to see things"
@@ -53,12 +63,16 @@ The codebase has been **completely refactored** into a clean, modular structure.
 ### Running PnP Tasks:
 ```bash
 # Generate tool vision parameters (do once per tool):
-python generate_tool_vision_params.py 0 0  # Camera 0, Tool 0
-python generate_tool_vision_params.py 0 1  # Camera 0, Tool 1
-python generate_tool_vision_params.py 0 2  # Camera 0, Tool 2
+python utils/generate_tool_vision_params.py 0 0  # Camera 0, Tool 0
+python utils/generate_tool_vision_params.py 0 1  # Camera 0, Tool 1
+python utils/generate_tool_vision_params.py 0 2  # Camera 0, Tool 2
+
+# Calibrate tools:
+python calibrate_tools.py --tools all        # Calibrate all tools
+python calibrate_tools.py --tools 0 1 2      # Calibrate specific tools
 
 # Run pick-and-place:
-python run_pnp_task.py placement_config.json
+python run_pnp_task.py config/placement_config.json
 ```
 
 ## Development Setup
@@ -145,7 +159,7 @@ The original system (now in `old_implementation/`) had these files:
 
 The refactored system uses JSON configuration files for each camera, eliminating hardcoded coordinate transforms:
 
-**camera_config_0.json** (Upward camera):
+**config/camera_config_0.json** (Upward camera):
 ```json
 {
   "transform": {
@@ -160,7 +174,7 @@ The refactored system uses JSON configuration files for each camera, eliminating
 }
 ```
 
-**camera_config_2.json** (Downward camera):
+**config/camera_config_2.json** (Downward camera):
 ```json
 {
   "transform": {
@@ -202,14 +216,14 @@ The system uses two complementary vision approaches:
 
 **Parameter Files (NEW - Tool-Specific):**
 Vision parameters are now stored per (camera, tool) pair:
-- Format: `vision_params_camera{N}_tool{T}.json`
+- Format: `config/vision_params_camera{N}_tool{T}.json`
 - Examples:
-  - `vision_params_camera0_tool0.json` - Camera 0 detecting Tool 0
-  - `vision_params_camera0_tool1.json` - Camera 0 detecting Tool 1
-  - `vision_params_camera0_tool2.json` - Camera 0 detecting Tool 2
-  - `vision_params_camera2_tool.json` - Camera 2 general (unchanged)
+  - `config/vision_params_camera0_tool0.json` - Camera 0 detecting Tool 0
+  - `config/vision_params_camera0_tool1.json` - Camera 0 detecting Tool 1
+  - `config/vision_params_camera0_tool2.json` - Camera 0 detecting Tool 2
+  - `config/vision_params_camera2_target.json` - Camera 2 target detection
 - Each contains HSV thresholds and circle detection parameters
-- Generate using: `python generate_tool_vision_params.py <camera_num> <tool_num>`
+- Generate using: `python utils/generate_tool_vision_params.py <camera_num> <tool_num>`
 
 **Old Format (Archived):**
 - `vision_params_camera0_tool.json` - ⚠️ Shared across all tools (problematic)
@@ -257,7 +271,7 @@ The main workflow in `PnP.py` follows this sequence:
 
 ### Configuration Files
 
-**placement_config.json** - Main component placement configuration:
+**config/placement_config.json** - Main component placement configuration:
 ```json
 {
   "components": [
@@ -377,16 +391,17 @@ The system handles complex axis mappings where toolheads may use different axis 
 
 ### Adding New Components
 1. Capture template images: component from above (in feeder) and below (on tool)
-2. Add component entry to `placement_config.json`
-3. Tune vision parameters using `vision_tools.py` if needed
-4. Define placement locations with coordinates and rotations
+2. Save template images to `templates/` directory
+3. Add component entry to `config/placement_config.json`
+4. Tune vision parameters using `utils/generate_tool_vision_params.py` if needed
+5. Define placement locations with coordinates and rotations
 
 ### Modifying Detection Parameters
 Vision parameters are camera and target specific. After changing lighting or camera positions:
-1. Run `python vision_tools.py <camera_num> <target_type>`
+1. Run `python utils/generate_tool_vision_params.py <camera_num> <tool_num>`
 2. Adjust HSV ranges to isolate the target
 3. Tune circle detection parameters until consistent detection
-4. Press 'q' to save - parameters stored in `vision_params_camera{N}_{target}.json`
+4. Press 'q' to save - parameters stored in `config/vision_params_camera{N}_tool{T}.json`
 
 ### Coordinate Debugging
 Use `M114` commands to check current position. The `parse_position()` method extracts X, Y, Z coordinates from the response string format: `X:123.45 Y:67.89 Z:10.11`

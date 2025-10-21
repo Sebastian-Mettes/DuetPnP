@@ -27,7 +27,7 @@ from machine_control import Printer, center_target_in_camera
 # Configuration
 TARGET_PICKUP_LOCATION = [10.0, 10.0, 1.0]  # For Tool 3 calibration
 TARGET_PLACE_LOCATION = [110.0, 110.0, 0.0]  # For Tool 3 calibration
-TOOL3_CHECK_HEIGHT = 110.0
+TOOL3_CHECK_HEIGHT = 158.0
 
 
 def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: CameraConfig, skip_confirm: bool = False, show_display: bool = True) -> bool:
@@ -257,7 +257,7 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
             "calibration_method": "camera centering with axis mapping"
         }
 
-        output_file = f"tool{tool_number}_offset.json"
+        output_file = f"config/tool{tool_number}_offset.json"
         with open(output_file, 'w') as f:
             json.dump(offset_data, f, indent=2)
         print(f"✓ Tool {tool_number} offset saved to {output_file}")
@@ -282,7 +282,7 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
         return False
 
 
-def calibrate_tool3_camera(printer: Printer, cam0_config: CameraConfig, cam2_config: CameraConfig, skip_confirm: bool = False) -> bool:
+def calibrate_tool3_camera(printer: Printer, cam0_config: CameraConfig, cam2_config: CameraConfig, skip_confirm: bool = False, show_display: bool = True) -> bool:
     """
     Calibrate Tool 3 (downward camera) using PnP method.
 
@@ -291,6 +291,7 @@ def calibrate_tool3_camera(printer: Printer, cam0_config: CameraConfig, cam2_con
         cam0_config: Camera config for lower camera
         cam2_config: Camera config for upper camera
         skip_confirm: Skip user confirmation
+        show_display: Show visual feedback window (default: True)
 
     Returns:
         bool: True if calibration successful
@@ -316,21 +317,21 @@ def calibrate_tool3_camera(printer: Printer, cam0_config: CameraConfig, cam2_con
         print("-" * 60)
 
         printer.select_tool(2)
-        time.sleep(2.5)
+        printer.wait_for_idle()
 
         printer.linear_move(x=TARGET_PICKUP_LOCATION[0],
                           y=TARGET_PICKUP_LOCATION[1],
                           z=50)
-        time.sleep(1.5)
+        printer.wait_for_idle()
 
         printer.control_solenoid(True)
-        time.sleep(0.5)
+        time.sleep(0.25)
         printer.control_vacuum(True)
         printer.linear_move(z=TARGET_PICKUP_LOCATION[2])
-        time.sleep(2.5)
+        printer.wait_for_idle()
 
         printer.linear_move(z=150)
-        time.sleep(1.5)
+        printer.wait_for_idle()
 
         print("✓ Target picked up")
 
@@ -339,10 +340,11 @@ def calibrate_tool3_camera(printer: Printer, cam0_config: CameraConfig, cam2_con
         print("-" * 60)
 
         camera_loc = printer.camera_location
-        printer.linear_move(x=camera_loc[0], y=camera_loc[1], z=camera_loc[2] + 10)
-        time.sleep(1.5)
+        printer.linear_move(x=camera_loc[0], y=camera_loc[1], z=camera_loc[2] + 10)        
 
         printer.control_led(0, True)
+        printer.wait_for_idle()
+        time.sleep(0.25)
 
         def detect_target_lower():
             """Detection callback for target on lower camera."""
@@ -363,7 +365,8 @@ def calibrate_tool3_camera(printer: Printer, cam0_config: CameraConfig, cam2_con
             tolerance=2,
             max_iterations=20,
             feed_rate=1200,
-            debug=True
+            debug=True,
+            show_display=show_display
         )
 
         if not success:
@@ -381,24 +384,23 @@ def calibrate_tool3_camera(printer: Printer, cam0_config: CameraConfig, cam2_con
         printer.send_gcode_command("M114", check=False)
         current_pos = printer.parse_position(printer.response)
 
-        offset_x = current_pos['X'] - camera_loc[0]
+        offset_x = current_pos['X'] - camera_loc[0] #Quick logic: If camera_loc is (0,0) and current_pos is (-10,-10), then offset_x = -10, we need to
         offset_y = current_pos['Y'] - camera_loc[1]
-        target_x = TARGET_PLACE_LOCATION[0] + offset_x
+        target_x = TARGET_PLACE_LOCATION[0] + offset_x #Quick logic: if target_location is (100,100), and offsets are (-10,-10), then target_x = 90
         target_y = TARGET_PLACE_LOCATION[1] + offset_y
 
         printer.linear_move(x=target_x, y=target_y)
-        time.sleep(1.5)
+        printer.wait_for_idle()
 
         printer.linear_move(z=TARGET_PLACE_LOCATION[2])
         printer.wait_for_idle()
 
         printer.control_solenoid(False)
-        time.sleep(0.5)
         printer.control_vacuum(False)
-        time.sleep(0.5)
+        time.sleep(1.0) #wait for vacuum to release and solenoid to close
 
         printer.linear_move(z=150)
-        time.sleep(1.5)
+        printer.wait_for_idle()
 
         print(f"✓ Target placed at X{target_x:.2f}, Y{target_y:.2f}")
 
@@ -407,14 +409,13 @@ def calibrate_tool3_camera(printer: Printer, cam0_config: CameraConfig, cam2_con
         print("-" * 60)
 
         printer.select_tool(3)
-        time.sleep(2.5)
-
+        printer.wait_for_idle()
+        printer.control_led(2, True) #Turn on upper camera LED
         printer.linear_move(x=TARGET_PLACE_LOCATION[0],
                           y=TARGET_PLACE_LOCATION[1],
                           z=TOOL3_CHECK_HEIGHT)
-        time.sleep(1.5)
-
-        printer.control_led(2, True)
+        printer.wait_for_idle()
+        
 
         def detect_target_upper():
             """Detection callback for target on upper camera."""
@@ -435,7 +436,8 @@ def calibrate_tool3_camera(printer: Printer, cam0_config: CameraConfig, cam2_con
             tolerance=2,
             max_iterations=20,
             feed_rate=1200,
-            debug=True
+            debug=True,
+            show_display=show_display
         )
 
         if not success:
@@ -450,53 +452,75 @@ def calibrate_tool3_camera(printer: Printer, cam0_config: CameraConfig, cam2_con
         print("\nStep 5: Calculating Tool 3 offset")
         print("-" * 60)
 
-        try:
-            existing_offsets = printer.get_tool_offsets(3)
-            existing_offset_x = existing_offsets.get('X', 0.0)
-            existing_offset_y = existing_offsets.get('Y', 0.0)
-            existing_offset_z = existing_offsets.get('Z', 0.0)
-            print(f"  Current Tool 3 offset: X{existing_offset_x:+.3f}, Y{existing_offset_y:+.3f}, Z{existing_offset_z:+.3f}")
-        except:
-            existing_offset_x = 0.0
-            existing_offset_y = 0.0
-            existing_offset_z = 0.0
+        # Get axis mappings for Tool 3 (e.g., X->U, Y->V for some tools)
+        printer.send_gcode_command("M563 P3", check=False)
+        axis_maps = printer.parse_axis_mapping(printer.response)
+        print(f"\n  Axis mappings for Tool 3: {axis_maps}")
 
-        correction_x = final_pos_t3['X'] - TARGET_PLACE_LOCATION[0]
-        correction_y = final_pos_t3['Y'] - TARGET_PLACE_LOCATION[1]
+        # Get current tool offsets from firmware
+        printer.send_gcode_command("G10 P3", check=False)
+        current_offsets = printer.parse_tool_offsets(printer.response, 3)
 
-        new_offset_x = existing_offset_x - correction_x
-        new_offset_y = existing_offset_y - correction_y
+        print(f"\n  Current offsets from firmware:")
+        for axis, value in sorted(current_offsets.items()):
+            print(f"    {axis}: {value:+.3f} mm")
 
-        print(f"  Measured correction: X{correction_x:+.3f}, Y{correction_y:+.3f}")
-        print(f"  New offset: X{new_offset_x:+.3f}, Y{new_offset_y:+.3f}, Z{existing_offset_z:+.3f}")
+        # Calculate new offsets using mapped axes (same approach as calibrate_basic_tool)
+        # Expected position is where we placed the target
+        expected_position = [TARGET_PLACE_LOCATION[0], TARGET_PLACE_LOCATION[1], TOOL3_CHECK_HEIGHT]  # [X, Y, Z]
+        new_offsets = {}
 
+        for source_axis, mapped_axis in axis_maps.items():
+            # Get the index for X, Y, or Z (0, 1, or 2)
+            axis_index = 'XYZ'.index(source_axis)
+            # Calculate the difference in the source axis (X, Y, or Z)
+            source_diff = final_pos_t3[source_axis] - expected_position[axis_index]
+            # Add this difference to the current offset of the mapped axis
+            new_offsets[mapped_axis] = current_offsets[mapped_axis] - source_diff
+
+        print(f"\n  Calculated position differences (source coordinates):")
+        print(f"    X: {final_pos_t3['X'] - expected_position[0]:+.3f} mm")
+        print(f"    Y: {final_pos_t3['Y'] - expected_position[1]:+.3f} mm")
+
+        print(f"\n  New offsets (mapped to physical axes):")
+        for axis, value in sorted(new_offsets.items()):
+            print(f"    {axis}: {value:+.3f} mm")
+
+        # Apply offset
         if not skip_confirm:
             response = input("\nApply new offset to Tool 3? [y/N]: ").strip().lower()
         else:
             response = 'y'
 
         if response == 'y':
+            # Build G10 command with mapped axes
+            offset_params = ' '.join(f"{axis}{value:.3f}" for axis, value in sorted(new_offsets.items()))
             printer.send_gcode_command(
-                f"G10 P3 X{new_offset_x:.3f} Y{new_offset_y:.3f} Z{existing_offset_z:.3f}",
+                f"G10 P3 {offset_params}",
                 check=False
             )
-            print("✓ Tool 3 offset applied to firmware")
+            print(f"✓ Tool 3 offset applied to firmware")
+        else:
+            offset_params = ' '.join(f"{axis}{value:.3f}" for axis, value in sorted(new_offsets.items()))
+            print(f"  Offset not applied - you can manually apply it later with:")
+            print(f"    G10 P3 {offset_params}")
 
-        # Save to file
+        # Save to file with axis mapping information
         offset_data = {
             "tool": 3,
-            "existing_offset_x": round(existing_offset_x, 3),
-            "existing_offset_y": round(existing_offset_y, 3),
-            "existing_offset_z": round(existing_offset_z, 3),
-            "measured_correction_x": round(correction_x, 3),
-            "measured_correction_y": round(correction_y, 3),
-            "new_offset_x": round(new_offset_x, 3),
-            "new_offset_y": round(new_offset_y, 3),
-            "calibration_method": "PnP target placement"
+            "axis_mappings": axis_maps,
+            "current_offsets": {k: round(v, 3) for k, v in current_offsets.items()},
+            "new_offsets": {k: round(v, 3) for k, v in new_offsets.items()},
+            "position_difference_X": round(final_pos_t3['X'] - expected_position[0], 3),
+            "position_difference_Y": round(final_pos_t3['Y'] - expected_position[1], 3),
+            "expected_position": expected_position,
+            "actual_position": [final_pos_t3['X'], final_pos_t3['Y'], final_pos_t3.get('Z', TOOL3_CHECK_HEIGHT)],
+            "calibration_method": "PnP target placement with axis mapping"
         }
 
-        with open("tool3_offset.json", 'w') as f:
+        with open("config/tool3_offset.json", 'w') as f:
             json.dump(offset_data, f, indent=2)
+        print(f"✓ Tool 3 offset saved to config/tool3_offset.json")
 
         cleanup_tool3(printer, vision_lower, vision_upper)
 

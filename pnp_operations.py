@@ -2,7 +2,7 @@
 PnP Operations Module for DuetPnP
 
 This module handles PnP-specific operations including:
-- ConfigManager: Loads placement configs, templates, camera offsets
+- ConfigManager: Loads placement configs and component templates
 - PnPWorkflow: Orchestrates pick-and-place operations
 
 Uses machine_control and machine_vision modules for hardware interaction.
@@ -15,22 +15,23 @@ from typing import Dict, List, Tuple, Optional
 from machine_control import Printer, Feeder, center_target_in_camera
 from machine_vision import VisionTools, CameraConfig, load_camera_config, create_display_window, display_image
 import time
+import os
+from datetime import datetime
 
 
 class ConfigManager:
     """
     Manages all configuration files for PnP operations.
-    
+
     Handles:
-    - Placement configuration (placement_config.json)
+    - Placement configuration (config/placement_config.json)
     - Component templates (upper and lower)
-    - Camera offset calibration
     """
-    
-    def __init__(self, config_file: str = "placement_config.json"):
+
+    def __init__(self, config_file: str = "config/placement_config.json"):
         """
         Load configuration from file.
-        
+
         Args:
             config_file: Path to placement configuration JSON
         """
@@ -38,22 +39,20 @@ class ConfigManager:
         self.config = None
         self.upper_templates = {}
         self.lower_templates = {}
-        self.camera_offset = {'X': 0, 'Y': 0, 'Z': 0}
-        
+
         self.load_config()
-        self.load_camera_offset()
     
     def load_config(self):
         """
         Load placement configuration from JSON file.
-        
+
         Expected format:
         {
             "components": [
                 {
                     "type": "component_name",
-                    "upper_template": "path/to/above_view.png",
-                    "lower_template": "path/to/below_view.png",
+                    "upper_template": "templates/component_above.png",
+                    "lower_template": "templates/component_below.png",
                     "feed_number": 0,
                     "reel_location": {"x": 0, "y": 0, "z": 0},
                     "reel_focus": 101.25,
@@ -61,10 +60,10 @@ class ConfigManager:
                         {"x": 0, "y": 0, "z": 0, "rotation": 0}
                     ]
                 }
-            ],
-            "vacuum_pin": "fan1",
-            "solenoid_pin": "fan2"
+            ]
         }
+
+        Note: Vacuum and solenoid pins are configured in config/machine_config.json
         """
         try:
             with open(self.config_file, 'r') as f:
@@ -75,7 +74,7 @@ class ConfigManager:
                 comp_type = component['type']
                 
                 # Load upper template (feeder view)
-                upper_path = component['upper_template']
+                upper_path = component['upper_template'] #"From Above, with upper camera (which is downward facing)
                 upper_template = cv2.imread(upper_path, cv2.IMREAD_GRAYSCALE)
                 if upper_template is None:
                     raise ValueError(f"Could not load upper template: {upper_path}")
@@ -92,17 +91,7 @@ class ConfigManager:
             
         except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
             raise ValueError(f"Error loading configuration: {str(e)}")
-    
-    def load_camera_offset(self):
-        """Load camera offset from calibration file."""
-        try:
-            with open('camera_offset.json', 'r') as f:
-                self.camera_offset = json.load(f)
-            print(f"Loaded camera offset: {self.camera_offset}")
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            print(f"Warning: Could not load camera offset: {e}")
-            self.camera_offset = {'X': 0, 'Y': 0, 'Z': 0}
-    
+
     def get_component(self, component_type: str) -> Optional[Dict]:
         """Get component configuration by type."""
         for component in self.config['components']:
@@ -153,13 +142,18 @@ class PnPWorkflow:
         self.MAX_ITERATIONS = 20
 
         # Checkpoint state
-        self.checkpoint_file = "pnp_checkpoint.json"
+        self.checkpoint_file = "config/pnp_checkpoint.json"
         self.current_component_index = 0
         self.current_placement_index = 0
         self.completed_placements = []
         self.failed_placements = []
 
-        print("PnP Workflow initialized")
+        # Session management for photos
+        self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.session_dir = os.path.join("sessions", self.session_id)
+        os.makedirs(self.session_dir, exist_ok=True)
+        print(f"PnP Workflow initialized - Session: {self.session_id}")
+        print(f"Photos will be saved to: {self.session_dir}")
 
     def save_checkpoint(self):
         """Save current progress to checkpoint file."""
@@ -169,6 +163,8 @@ class PnPWorkflow:
             "version": "1.0",
             "last_updated": datetime.now().isoformat(),
             "status": "paused",
+            "config_file": self.config.config_file,
+            "session_id": self.session_id,
             "current_component_index": self.current_component_index,
             "current_placement_index": self.current_placement_index,
             "completed_placements": self.completed_placements,
@@ -195,13 +191,30 @@ class PnPWorkflow:
             if checkpoint_data.get('status') == 'idle':
                 return False  # No checkpoint to resume
 
+            # Verify config file matches
+            checkpoint_config = checkpoint_data.get('config_file')
+            if checkpoint_config and checkpoint_config != self.config.config_file:
+                print(f"Warning: Checkpoint was for different config file:")
+                print(f"  Checkpoint: {checkpoint_config}")
+                print(f"  Current:    {self.config.config_file}")
+                response = input("Continue anyway? [y/N]: ").strip().lower()
+                if response != 'y':
+                    print("Checkpoint load cancelled")
+                    return False
+
             self.current_component_index = checkpoint_data.get('current_component_index', 0)
             self.current_placement_index = checkpoint_data.get('current_placement_index', 0)
             self.completed_placements = checkpoint_data.get('completed_placements', [])
             self.failed_placements = checkpoint_data.get('failed_placements', [])
 
             print(f"✓ Checkpoint loaded from {self.checkpoint_file}")
+            print(f"  Config file: {checkpoint_config or 'unknown'}")
+            if checkpoint_data.get('session_id'):
+                print(f"  Session ID: {checkpoint_data['session_id']}")
             print(f"  Resuming from component {self.current_component_index}, placement {self.current_placement_index}")
+            print(f"  Completed: {len(self.completed_placements)} placements")
+            if self.failed_placements:
+                print(f"  Failed: {len(self.failed_placements)} placements")
             return True
 
         except FileNotFoundError:
@@ -266,7 +279,7 @@ class PnPWorkflow:
 
                 # Try to place component with error handling
                 try:
-                    success = self.place_component(component, placement)
+                    success = self.place_component(component, placement, place_idx + 1)
 
                     if success:
                         self.completed_placements.append(placement_id)
@@ -322,6 +335,67 @@ class PnPWorkflow:
         self.clear_checkpoint()
         return True
 
+    def capture_verification_photo(self, component_type: str, placement_number: int, placement_pos: Dict) -> bool:
+        """
+        Capture verification photo of placed component using upper camera (Tool 3).
+
+        Args:
+            component_type: Type of component (e.g., "resistor_0201")
+            placement_number: Sequential placement number
+            placement_pos: Placement position dict with x, y, z
+
+        Returns:
+            bool: True if photo captured successfully
+        """
+        print("  5. Capturing verification photo...")
+
+        # Get camera 2 (upper camera) focus distance from config
+        camera2_config = self.camera_configs[2]
+        focus_dist_config = camera2_config.config.get('focus_distance', {})
+        focus_distance = focus_dist_config.get('value', 101.25) if isinstance(focus_dist_config, dict) else focus_dist_config
+
+        # Photo focus height = focus distance from bed + placement Z value
+        photo_focus_height = focus_distance + placement_pos['z']
+
+        # Switch to camera tool
+        self.printer.select_tool(3)
+        time.sleep(2.5)  # Camera tool changetime
+
+        # Move to placement location at focus height
+        self.printer.linear_move(z=150)  # Safe height first
+        self.printer.linear_move(
+            x=placement_pos['x'],
+            y=placement_pos['y'],
+            z=photo_focus_height
+        )
+        self.printer.wait_for_idle()
+
+        # Turn on upper camera LED
+        self.printer.control_led(2, True)
+        time.sleep(0.5)  # Let camera adjust
+
+        # Capture frame
+        frame = self.vision_upper.capture_frame()
+
+        # Turn off LED
+        self.printer.control_led(2, False)
+
+        if frame is None:
+            print("  Warning: Failed to capture verification photo")
+            return False
+
+        # Save photo with naming: component_type_#.png
+        photo_filename = f"{component_type}_{placement_number}.png"
+        photo_path = os.path.join(self.session_dir, photo_filename)
+
+        success = cv2.imwrite(photo_path, frame)
+        if success:
+            print(f"  ✓ Photo saved: {photo_filename}")
+            return True
+        else:
+            print(f"  Warning: Failed to save photo to {photo_path}")
+            return False
+
     def _handle_placement_error(self, placement_id: str, error_msg: str) -> str:
         """
         Handle placement error with user prompt.
@@ -350,14 +424,15 @@ class PnPWorkflow:
             else:
                 print("Invalid choice. Please enter R, S, or A.")
     
-    def place_component(self, component: Dict, placement: Dict) -> bool:
+    def place_component(self, component: Dict, placement: Dict, placement_number: int) -> bool:
         """
         Pick component from feeder and place at target location.
-        
+
         Args:
             component: Component configuration dictionary
             placement: Placement location dictionary
-        
+            placement_number: Sequential placement number for this component type
+
         Returns:
             True if successful, False otherwise
         """
@@ -371,7 +446,7 @@ class PnPWorkflow:
         self.printer.control_led(2, True)  # Upper camera LED
         self.printer.linear_move(z=150)  # Safe height
         self.printer.linear_move(x=reel_loc['x'], y=reel_loc['y'], z=reel_focus)
-        time.sleep(1)
+        self.printer.wait_for_idle()
         
         # Center component in view
         template_path = component['upper_template']
@@ -399,12 +474,17 @@ class PnPWorkflow:
         self.printer.control_led(2, False)
         self.printer.select_tool(2)  # PnP tool
 
-        self.printer.control_vacuum(True)
-        self.printer.linear_move(x=pickup_pos['X'], y=pickup_pos['Y'], z=reel_loc['z'])
-        time.sleep(0.5)
+
+        self.printer.linear_move(z=150) #Lift to safe height
+        self.printer.linear_move(x=pickup_pos['X'], y=pickup_pos['Y'])
+        self.printer.wait_for_idle()
         self.printer.control_solenoid(True)
-        time.sleep(0.5)
-        self.printer.linear_move(z=150)  # Lift
+        self.printer.control_vacuum(True)
+        time.sleep(0.25)
+        self.printer.linear_move(z=pickup_pos['Z']) #Move to pickup height
+        self.printer.wait_for_idle()
+        self.printer.linear_move(z=150) #Lift to safe height
+        self.printer.wait_for_idle()
         
         # 3. Determine orientation with lower camera
         print("  3. Checking component orientation...")
@@ -415,15 +495,16 @@ class PnPWorkflow:
         
         # Detect component and rotation
         lower_template_path = component['lower_template']
+        desired_angle = placement.get('rotation', 0)
         detection_result = self.vision_lower.find_component(lower_template_path)
-        
+
         if detection_result[0] is None:
             print("  Warning: Could not detect component on tool!")
             self.printer.control_led(0, False)
-            # Continue anyway - place at 0° rotation
+            # Continue anyway - place at 0° rotation with no offset correction
+            component_offset = {'X': 0, 'Y': 0}
         else:
             center_pos, detected_angle = detection_result
-            desired_angle = placement.get('rotation', 0)
             rotation_needed = desired_angle - detected_angle
             print(f"  Component detected at {detected_angle}°, target is {desired_angle}°")
 
@@ -436,13 +517,73 @@ class PnPWorkflow:
             else:
                 print(f"  ✓ Component already at correct angle (within 1°)")
 
+            # Center component and determine offset (only check desired angle for speed)
+            print("  Centering component to determine placement offset...")
+
+            def detect_component_at_desired_angle():
+                """
+                Detection method that only checks at the desired angle.
+                Since we already rotated the component, we only need to find it
+                at the current angle, not search through all possible angles.
+
+                Captures from outer scope:
+                    - lower_template_path: Component template image
+                    - desired_angle: Target rotation angle
+                """
+                # Capture fresh frame
+                frame = self.vision_lower.capture_frame()
+                if frame is None:
+                    return None, None, None
+
+                # Find component at the desired angle only (no angular search)
+                # This is much faster than searching -15 to +16 degrees
+                result = self.vision_lower.find_component(
+                    lower_template_path,
+                    angle=desired_angle,  # Expected angle - component should be at this orientation
+                    exact_angle=True  # Only check at this specific angle for speed
+                )
+
+                if result[0] is not None:
+                    pos, angle = result
+                    return {'X': pos[0], 'Y': pos[1]}, angle, None
+                return None, None, None
+
+            success, centered_pos = center_target_in_camera(
+                printer=self.printer,
+                vision=self.vision_lower,
+                camera_config=self.camera_configs[0],
+                detection_method=detect_component_at_desired_angle,
+                tolerance=self.TOLERANCE,
+                max_iterations=10,  # Fewer iterations needed since already roughly centered
+                feed_rate=600,  # Slower for precision
+                debug=False
+            )
+
+            if success:
+                # Calculate offset from camera center
+                self.printer.send_gcode_command("M114", check=False)
+                current_pos = self.printer.parse_position(self.printer.response)
+
+                # Offset is the difference between current position and camera location
+                component_offset = {
+                    'X': current_pos['X'] - camera_loc[0],
+                    'Y': current_pos['Y'] - camera_loc[1]
+                }
+                print(f"  ✓ Component offset: X{component_offset['X']:+.3f}, Y{component_offset['Y']:+.3f}")
+            else:
+                print("  Warning: Could not center component, using no offset")
+                component_offset = {'X': 0, 'Y': 0}
+
         self.printer.control_led(0, False)
-        
-        # 4. Place component
+
+        # 4. Place component (with offset correction)
         print("  4. Placing component...")
         target_pos = placement
         self.printer.linear_move(z=150)  # Safe height
-        self.printer.linear_move(x=target_pos['x'], y=target_pos['y'])
+        self.printer.linear_move(
+            x=target_pos['x'] + component_offset['X'],
+            y=target_pos['y'] + component_offset['Y']
+        )
         self.printer.linear_move(z=target_pos['z'])
         self.printer.wait_for_idle()  # CRITICAL: Wait for Z to reach placement height
 
@@ -451,6 +592,14 @@ class PnPWorkflow:
         self.printer.control_vacuum(False)
         time.sleep(0.5)
         self.printer.linear_move(z=150)
-        
+
         print("  ✓ Component placed!")
+
+        # 5. Capture verification photo
+        self.capture_verification_photo(
+            component_type=component['type'],
+            placement_number=placement_number,
+            placement_pos=placement
+        )
+
         return True
