@@ -170,8 +170,9 @@ Edit `config/placement_config.json` to define your components:
       "upper_template": "templates/resistor_above.png",
       "lower_template": "templates/resistor_below.png",
       "feed_number": 0,
-      "reel_location": {"x": 50.0, "y": 50.0, "z": 101.25},
+      "reel_location": {"x": 50.0, "y": 50.0, "z": -8.0},
       "reel_focus": 101.25,
+      "feeder_button_location": {"x": 45.0, "y": 55.0, "z": 0.0},
       "placements": [
         {"x": 10.0, "y": 10.0, "z": 0.5, "rotation": 0},
         {"x": 15.0, "y": 10.0, "z": 0.5, "rotation": 90}
@@ -181,7 +182,13 @@ Edit `config/placement_config.json` to define your components:
 }
 ```
 
-**Note:** Vacuum and solenoid pins are now configured in `config/machine_config.json`, not in the placement config.
+**Configuration Fields:**
+- `reel_location`: XYZ coordinates where component sits in feeder
+- `reel_focus`: Z height for camera focus when viewing component in feeder
+- `feeder_button_location`: XYZ coordinates where tool presses to advance feeder (for future automation)
+- `placements`: Array of placement locations with rotation
+
+**Note:** Vacuum and solenoid pins are configured in `config/machine_config.json`, not in the placement config.
 
 **Required template images:**
 - `upper_template`: Component view from above (in feeder)

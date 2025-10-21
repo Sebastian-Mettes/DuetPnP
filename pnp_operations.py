@@ -56,6 +56,7 @@ class ConfigManager:
                     "feed_number": 0,
                     "reel_location": {"x": 0, "y": 0, "z": 0},
                     "reel_focus": 101.25,
+                    "feeder_button_location": {"x": 0, "y": 0, "z": 0},
                     "placements": [
                         {"x": 0, "y": 0, "z": 0, "rotation": 0}
                     ]
@@ -64,6 +65,7 @@ class ConfigManager:
         }
 
         Note: Vacuum and solenoid pins are configured in config/machine_config.json
+        Note: feeder_button_location is where the tool presses to advance the feeder
         """
         try:
             with open(self.config_file, 'r') as f:
@@ -423,7 +425,58 @@ class PnPWorkflow:
                 return 'abort'
             else:
                 print("Invalid choice. Please enter R, S, or A.")
-    
+
+    def press_feeder_button(self, component: Dict) -> bool:
+        """
+        Press the feeder button to advance a new component.
+
+        Args:
+            component: Component configuration dictionary
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        # Check if feeder_button_location is configured
+        if 'feeder_button_location' not in component:
+            print("  Warning: No feeder_button_location configured for this component")
+            return False
+
+        button_loc = component['feeder_button_location']
+        print(f"  Pressing feeder button at X{button_loc['x']:.1f}, Y{button_loc['y']:.1f}")
+
+        # Switch to PnP tool (T2) for pressing button
+        self.printer.select_tool(2)
+        self.printer.wait_for_idle()
+
+        # Move to safe height above button
+        self.printer.linear_move(z=150)
+
+        # Move to button XY location
+        self.printer.linear_move(x=button_loc['x'], y=button_loc['y'])
+        self.printer.wait_for_idle()
+
+        # Press down on button
+        press_height = button_loc['z']
+        self.printer.linear_move(z=press_height+30)
+        self.printer.linear_move(z=press_height,f=600)
+        self.printer.wait_for_idle()
+        self.printer.linear_move(z=press_height + 30)
+
+        #Press again (2x to feed part):
+        self.printer.linear_move(z=press_height,f=600)
+        self.printer.wait_for_idle()
+        
+        # Lift back up
+        self.printer.linear_move(z=150)
+        self.printer.wait_for_idle()
+
+        print("  ✓ Feeder button pressed")
+
+        # Wait for feeder to advance (adjust timing as needed)
+        
+
+        return True
+
     def place_component(self, component: Dict, placement: Dict, placement_number: int) -> bool:
         """
         Pick component from feeder and place at target location.
@@ -436,6 +489,11 @@ class PnPWorkflow:
         Returns:
             True if successful, False otherwise
         """
+        # 0. Press feeder button to advance component (if configured)
+        if 'feeder_button_location' in component:
+            print("  0. Advancing feeder...")
+            self.press_feeder_button(component)
+
         # 1. Locate component in feeder
         print("  1. Locating component...")
         reel_loc = component['reel_location']
