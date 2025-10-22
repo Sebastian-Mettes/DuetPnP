@@ -662,7 +662,8 @@ def center_target_in_camera(
             # Calculate pixel offsets from center
             x_pixel_offset = image_center[0] - x_pixel
             y_pixel_offset = image_center[1] - y_pixel
-
+            printer.wait_for_idle()
+            time.sleep(0.25)
             # Show visual feedback if enabled
             if show_display and frame is not None:
                 status_text = f"Iter {iteration+1}/{max_iterations} | Offset: ({x_pixel_offset:.1f}, {y_pixel_offset:.1f})px"
