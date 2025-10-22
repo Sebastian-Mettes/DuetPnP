@@ -340,7 +340,7 @@ def calibrate_tool3_camera(printer: Printer, cam0_config: CameraConfig, cam2_con
         print("-" * 60)
 
         camera_loc = printer.camera_location
-        printer.linear_move(x=camera_loc[0], y=camera_loc[1], z=camera_loc[2] + 10)        
+        printer.linear_move(x=camera_loc[0], y=camera_loc[1], z=camera_loc[2])
 
         printer.control_led(0, True)
         printer.wait_for_idle()
