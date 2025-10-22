@@ -8,8 +8,8 @@
     "height": 960
   },
   "fixed_offset": {
-    "x": 0.85,
-    "y": 0.40,
+    "x": 0,
+    "y": 0,
     "description": "Manually determined camera offset from machine origin"
   },
   "machine_location": {
@@ -25,7 +25,7 @@
   "transform": {
     "image_flip": null,
     "image_rotate": 0,
-    "pixel_to_mm": 0.015,
+    "pixel_to_mm": 0.01,
     "pixel_x_to_machine_x": -1.0,
     "pixel_x_to_machine_y": 0.0,
     "pixel_y_to_machine_x": 0.0,
