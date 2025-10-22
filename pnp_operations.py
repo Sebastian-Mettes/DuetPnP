@@ -671,6 +671,14 @@ class PnPWorkflow:
             self.printer.rotate_c_axis(rotation_needed)
             self.printer.wait_for_idle()
             print(f"  ✓ Component rotated to {desired_angle}°")
+
+            # CRITICAL: Clear camera buffer after rotation
+            # The camera buffer contains old frames from before rotation
+            print("  Clearing camera buffer after rotation...")
+            time.sleep(0.3)  # Allow mechanical settling
+            for _ in range(5):  # Clear 5 buffered frames
+                self.vision_lower.capture_frame()
+            time.sleep(0.2)  # One more delay for fresh frame
         else:
             print(f"  ✓ Component already at correct angle (within 1°)")
 

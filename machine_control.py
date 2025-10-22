@@ -610,6 +610,7 @@ def center_target_in_camera(
     try:
         while iteration < max_iterations:
             # Detect target
+            time.sleep(0.33)
             result = detection_method()
 
             # Handle different return formats: (pos, angle, frame) or (pos, angle) or (pos,)
