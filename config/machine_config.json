@@ -3,7 +3,7 @@
   "description": "Machine-specific configuration for hardware pins and settings",
   "vacuum": {
     "pin": "fan1",
-    "on_value": 100,
+    "on_value": 150,
     "off_value": 0,
     "description": "Vacuum pump control for component pickup"
   },
