@@ -511,8 +511,13 @@ class PnPWorkflow:
 
         def detect_component_upper():
             """Detection method for upper camera that returns frame for display."""
+            # Capture fresh frame
+            frame = self.vision_upper.capture_frame()
+            if frame is None:
+                return None, None, None
+
+            # Find component in the captured frame
             pos, angle = self.vision_upper.find_component(template_path)
-            frame = self.vision_upper.frame  # Get the captured frame
             return pos, angle, frame
 
         success, final_pos = center_target_in_camera(
