@@ -15,7 +15,7 @@
   "machine_location": {
     "x": 21.6,
     "y": -56.7,
-    "z": 168.0,
+    "z": 167.0,
     "description": "XYZ coordinates where camera is mounted on machine"
   },
   "transform": {
