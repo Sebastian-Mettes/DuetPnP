@@ -551,7 +551,8 @@ class PnPWorkflow:
         self.printer.control_solenoid(True)
         self.printer.control_vacuum(True)
         time.sleep(0.25)
-        self.printer.linear_move(z=pickup_pos['Z']) #Move to pickup height
+        z_pickup_height = component.get('reel_location').get('z', 0)
+        self.printer.linear_move(z=z_pickup_height) #Move to pickup height
         self.printer.wait_for_idle()
         self.printer.linear_move(z=150) #Lift to safe height
         self.printer.wait_for_idle()
