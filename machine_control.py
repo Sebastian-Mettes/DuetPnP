@@ -645,6 +645,12 @@ def center_target_in_camera(
             if isinstance(detected_pos, dict):
                 x_pixel = detected_pos.get('X')
                 y_pixel = detected_pos.get('Y')
+                # Validate that dict values are not None
+                if x_pixel is None or y_pixel is None:
+                    if debug:
+                        print(f"Iteration {iteration}: Missing X or Y in dict: {detected_pos}")
+                    iteration += 1
+                    continue
             elif isinstance(detected_pos, tuple) and len(detected_pos) == 2:
                 x_pixel, y_pixel = detected_pos
             else:

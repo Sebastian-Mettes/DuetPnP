@@ -508,15 +508,22 @@ class PnPWorkflow:
         
         # Center component in view
         template_path = component['upper_template']
-        detection_fn = lambda: self.vision_upper.find_component(template_path)
-        
+
+        def detect_component_upper():
+            """Detection method for upper camera that returns frame for display."""
+            pos, angle = self.vision_upper.find_component(template_path)
+            frame = self.vision_upper.frame  # Get the captured frame
+            return pos, angle, frame
+
         success, final_pos = center_target_in_camera(
             self.printer,
             self.vision_upper,
             self.camera_configs[2],
-            detection_fn,
+            detect_component_upper,
             tolerance=self.TOLERANCE,
-            max_iterations=self.MAX_ITERATIONS
+            max_iterations=self.MAX_ITERATIONS,
+            debug=True,
+            show_display=True
         )
         
         if not success:
@@ -603,8 +610,8 @@ class PnPWorkflow:
 
                 if result[0] is not None:
                     pos, angle = result
-                    return {'X': pos[0], 'Y': pos[1]}, angle, None
-                return None, None, None
+                    return {'X': pos[0], 'Y': pos[1]}, angle, frame
+                return None, None, frame
 
             success, centered_pos = center_target_in_camera(
                 printer=self.printer,
@@ -614,7 +621,8 @@ class PnPWorkflow:
                 tolerance=self.TOLERANCE,
                 max_iterations=10,  # Fewer iterations needed since already roughly centered
                 feed_rate=600,  # Slower for precision
-                debug=False
+                debug=True,
+                show_display=True
             )
 
             if success:
