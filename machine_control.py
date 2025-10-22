@@ -714,13 +714,18 @@ def center_target_in_camera(
             # Move to new position
             printer.linear_move(x=new_x, y=new_y, feed_rate=feed_rate)
             printer.wait_for_idle()
-            time.sleep(0.33)
+
             if debug:
                 print(f"Iteration {iteration}: pixel_offset=({x_pixel_offset:.1f}, {y_pixel_offset:.1f}), "
                       f"move=({x_move:.3f}, {y_move:.3f})mm")
 
-            # Small delay for movement completion
-            time.sleep(0.5)
+            # CRITICAL: Clear camera buffer after movement
+            # The buffer contains frames from during/right after movement
+            time.sleep(0.3)  # Allow mechanical settling
+            for _ in range(5):
+                vision.capture_frame()
+            time.sleep(0.1)  # One more delay for fresh frame
+
             iteration += 1
 
         print(f"Failed to center after {max_iterations} iterations")
