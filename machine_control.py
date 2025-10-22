@@ -571,7 +571,7 @@ def center_target_in_camera(
     detection_method: Callable,
     tolerance: int = 2,
     max_iterations: int = 20,
-    feed_rate: int = 1200,
+    feed_rate: int = 300,
     debug: bool = False,
     show_display: bool = False
 ) -> Tuple[bool, Dict[str, float]]:

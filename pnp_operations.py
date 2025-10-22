@@ -711,8 +711,8 @@ class PnPWorkflow:
             camera_config=self.camera_configs[0],
             detection_method=detect_component_at_desired_angle,
             tolerance=self.TOLERANCE,
-            max_iterations=10,  # Fewer iterations needed since already roughly centered
-            feed_rate=600,  # Slower for precision
+            max_iterations=20,  # Fewer iterations needed since already roughly centered
+            feed_rate=150,  # Slower for precision
             debug=True,
             show_display=True
         )
