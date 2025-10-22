@@ -663,7 +663,7 @@ def center_target_in_camera(
             x_pixel_offset = image_center[0] - x_pixel
             y_pixel_offset = image_center[1] - y_pixel
             printer.wait_for_idle()
-            time.sleep(0.25)
+            
             # Show visual feedback if enabled
             if show_display and frame is not None:
                 status_text = f"Iter {iteration+1}/{max_iterations} | Offset: ({x_pixel_offset:.1f}, {y_pixel_offset:.1f})px"
@@ -712,13 +712,14 @@ def center_target_in_camera(
 
             # Move to new position
             printer.linear_move(x=new_x, y=new_y, feed_rate=feed_rate)
-
+            printer.wait_for_idle()
+            time.sleep(0.33)
             if debug:
                 print(f"Iteration {iteration}: pixel_offset=({x_pixel_offset:.1f}, {y_pixel_offset:.1f}), "
                       f"move=({x_move:.3f}, {y_move:.3f})mm")
 
             # Small delay for movement completion
-            time.sleep(0.8)
+            time.sleep(0.5)
             iteration += 1
 
         print(f"Failed to center after {max_iterations} iterations")

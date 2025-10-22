@@ -554,6 +554,7 @@ class PnPWorkflow:
         z_pickup_height = component.get('reel_location').get('z', 0)
         self.printer.linear_move(z=z_pickup_height) #Move to pickup height
         self.printer.wait_for_idle()
+        time.sleep(0.33)
         self.printer.linear_move(z=150) #Lift to safe height
         self.printer.wait_for_idle()
         
@@ -563,88 +564,173 @@ class PnPWorkflow:
         camera_loc = self.printer.camera_location
         self.printer.linear_move(x=camera_loc[0], y=camera_loc[1], z=camera_loc[2])
         time.sleep(1)
-        
-        # Detect component and rotation
+
+        # Detect component and rotation with retry logic and visual feedback
         lower_template_path = component['lower_template']
         desired_angle = placement.get('rotation', 0)
-        detection_result = self.vision_lower.find_component(lower_template_path)
 
-        if detection_result[0] is None:
-            print("  Warning: Could not detect component on tool!")
+        # Keep trying until component is detected
+        max_detection_attempts = 30
+        detection_attempt = 0
+        detected_angle = None
+        center_pos = None
+
+        print("  Waiting for component detection...")
+        window_name = "Component Orientation Detection"
+
+        while detection_attempt < max_detection_attempts:
+            # Capture frame
+            frame = self.vision_lower.capture_frame()
+
+            if frame is not None:
+                # Try to find component
+                detection_result = self.vision_lower.find_component(lower_template_path)
+                pos, angle = detection_result
+
+                # Create display with detection info
+                display = frame.copy()
+                image_h, image_w = display.shape[:2]
+                img_center = (image_w // 2, image_h // 2)
+
+                if pos is not None:
+                    # Component detected!
+                    center_pos = pos
+                    detected_angle = angle
+
+                    # Draw detection visualization
+                    cv2.circle(display, pos, 20, (0, 255, 0), 3)
+                    cv2.circle(display, pos, 2, (0, 0, 255), -1)
+
+                    # Draw center crosshair
+                    cv2.line(display, (img_center[0]-20, img_center[1]),
+                            (img_center[0]+20, img_center[1]), (255, 0, 0), 2)
+                    cv2.line(display, (img_center[0], img_center[1]-20),
+                            (img_center[0], img_center[1]+20), (255, 0, 0), 2)
+
+                    # Add text
+                    text = f"DETECTED! Angle: {angle}°, Target: {desired_angle}°"
+                    cv2.putText(display, text, (10, 30),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    cv2.putText(display, "Press 'c' to continue or 'q' to abort", (10, 60),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+
+                    cv2.imshow(window_name, display)
+
+                    # Wait for user confirmation
+                    key = cv2.waitKey(1000) & 0xFF  # Show for 1 second or until key press
+                    if key == ord('c') or key == 13:  # 'c' or Enter
+                        print(f"  Component detected at {detected_angle}°, target is {desired_angle}°")
+                        cv2.destroyWindow(window_name)
+                        break
+                    elif key == ord('q') or key == 27:  # 'q' or ESC
+                        print("  Detection aborted by user")
+                        cv2.destroyWindow(window_name)
+                        self.printer.control_led(0, False)
+                        return False
+                    # Otherwise continue to confirm detection
+                    break
+                else:
+                    # Component not detected
+                    cv2.putText(display, f"Waiting for component... ({detection_attempt+1}/{max_detection_attempts})",
+                               (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 165, 255), 2)
+                    cv2.putText(display, "Press 'q' to abort", (10, 60),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+
+                    # Draw center crosshair
+                    cv2.line(display, (img_center[0]-20, img_center[1]),
+                            (img_center[0]+20, img_center[1]), (255, 0, 0), 2)
+                    cv2.line(display, (img_center[0], img_center[1]-20),
+                            (img_center[0], img_center[1]+20), (255, 0, 0), 2)
+
+                    cv2.imshow(window_name, display)
+
+                    # Check for abort
+                    key = cv2.waitKey(500) & 0xFF
+                    if key == ord('q') or key == 27:
+                        print("  Detection aborted by user")
+                        cv2.destroyWindow(window_name)
+                        self.printer.control_led(0, False)
+                        return False
+
+            detection_attempt += 1
+            time.sleep(0.2)
+
+        # Check if detection succeeded
+        if center_pos is None or detected_angle is None:
+            print("  ERROR: Could not detect component on tool after multiple attempts!")
+            cv2.destroyWindow(window_name)
             self.printer.control_led(0, False)
-            # Continue anyway - place at 0° rotation with no offset correction
-            component_offset = {'X': 0, 'Y': 0}
+            return False
+
+        # Component detected, continue with orientation correction
+        rotation_needed = desired_angle - detected_angle
+
+        # Rotate component to desired angle
+        if abs(rotation_needed) > 1:  # Only rotate if difference > 1°
+            print(f"  Rotating by {rotation_needed}°...")
+            self.printer.rotate_c_axis(rotation_needed)
+            self.printer.wait_for_idle()
+            print(f"  ✓ Component rotated to {desired_angle}°")
         else:
-            center_pos, detected_angle = detection_result
-            rotation_needed = desired_angle - detected_angle
-            print(f"  Component detected at {detected_angle}°, target is {desired_angle}°")
+            print(f"  ✓ Component already at correct angle (within 1°)")
 
-            # Rotate component to desired angle
-            if abs(rotation_needed) > 1:  # Only rotate if difference > 1°
-                print(f"  Rotating by {rotation_needed}°...")
-                self.printer.rotate_c_axis(rotation_needed)
-                self.printer.wait_for_idle()
-                print(f"  ✓ Component rotated to {desired_angle}°")
-            else:
-                print(f"  ✓ Component already at correct angle (within 1°)")
+        # Center component and determine offset (only check desired angle for speed)
+        print("  Centering component to determine placement offset...")
 
-            # Center component and determine offset (only check desired angle for speed)
-            print("  Centering component to determine placement offset...")
+        def detect_component_at_desired_angle():
+            """
+            Detection method that only checks at the desired angle.
+            Since we already rotated the component, we only need to find it
+            at the current angle, not search through all possible angles.
 
-            def detect_component_at_desired_angle():
-                """
-                Detection method that only checks at the desired angle.
-                Since we already rotated the component, we only need to find it
-                at the current angle, not search through all possible angles.
+            Captures from outer scope:
+                - lower_template_path: Component template image
+                - desired_angle: Target rotation angle
+            """
+            # Capture fresh frame
+            frame = self.vision_lower.capture_frame()
+            if frame is None:
+                return None, None, None
 
-                Captures from outer scope:
-                    - lower_template_path: Component template image
-                    - desired_angle: Target rotation angle
-                """
-                # Capture fresh frame
-                frame = self.vision_lower.capture_frame()
-                if frame is None:
-                    return None, None, None
-
-                # Find component at the desired angle only (no angular search)
-                # This is much faster than searching -15 to +16 degrees
-                result = self.vision_lower.find_component(
-                    lower_template_path,
-                    angle=desired_angle,  # Expected angle - component should be at this orientation
-                    exact_angle=True  # Only check at this specific angle for speed
-                )
-
-                if result[0] is not None:
-                    pos, angle = result
-                    return {'X': pos[0], 'Y': pos[1]}, angle, frame
-                return None, None, frame
-
-            success, centered_pos = center_target_in_camera(
-                printer=self.printer,
-                vision=self.vision_lower,
-                camera_config=self.camera_configs[0],
-                detection_method=detect_component_at_desired_angle,
-                tolerance=self.TOLERANCE,
-                max_iterations=10,  # Fewer iterations needed since already roughly centered
-                feed_rate=600,  # Slower for precision
-                debug=True,
-                show_display=True
+            # Find component at the desired angle only (no angular search)
+            # This is much faster than searching -15 to +16 degrees
+            result = self.vision_lower.find_component(
+                lower_template_path,
+                angle=desired_angle,  # Expected angle - component should be at this orientation
+                exact_angle=True  # Only check at this specific angle for speed
             )
 
-            if success:
-                # Calculate offset from camera center
-                self.printer.send_gcode_command("M114", check=False)
-                current_pos = self.printer.parse_position(self.printer.response)
+            if result[0] is not None:
+                pos, angle = result
+                return {'X': pos[0], 'Y': pos[1]}, angle, frame
+            return None, None, frame
 
-                # Offset is the difference between current position and camera location
-                component_offset = {
-                    'X': current_pos['X'] - camera_loc[0],
-                    'Y': current_pos['Y'] - camera_loc[1]
-                }
-                print(f"  ✓ Component offset: X{component_offset['X']:+.3f}, Y{component_offset['Y']:+.3f}")
-            else:
-                print("  Warning: Could not center component, using no offset")
-                component_offset = {'X': 0, 'Y': 0}
+        success, centered_pos = center_target_in_camera(
+            printer=self.printer,
+            vision=self.vision_lower,
+            camera_config=self.camera_configs[0],
+            detection_method=detect_component_at_desired_angle,
+            tolerance=self.TOLERANCE,
+            max_iterations=10,  # Fewer iterations needed since already roughly centered
+            feed_rate=600,  # Slower for precision
+            debug=True,
+            show_display=True
+        )
+
+        if success:
+            # Calculate offset from camera center
+            self.printer.send_gcode_command("M114", check=False)
+            current_pos = self.printer.parse_position(self.printer.response)
+
+            # Offset is the difference between current position and camera location
+            component_offset = {
+                'X': current_pos['X'] - camera_loc[0],
+                'Y': current_pos['Y'] - camera_loc[1]
+            }
+            print(f"  ✓ Component offset: X{component_offset['X']:+.3f}, Y{component_offset['Y']:+.3f}")
+        else:
+            print("  Warning: Could not center component, using no offset")
+            component_offset = {'X': 0, 'Y': 0}
 
         self.printer.control_led(0, False)
 
