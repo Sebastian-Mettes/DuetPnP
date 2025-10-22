@@ -374,7 +374,12 @@ class PnPWorkflow:
 
         # Turn on upper camera LED
         self.printer.control_led(2, True)
-        time.sleep(0.5)  # Let camera adjust
+        time.sleep(0.3)  # Let camera adjust
+
+        # Clear camera buffer after movement and LED turn-on
+        for _ in range(5):
+            self.vision_upper.capture_frame()
+        time.sleep(0.1)
 
         # Capture frame
         frame = self.vision_upper.capture_frame()
@@ -505,7 +510,13 @@ class PnPWorkflow:
         self.printer.linear_move(z=150)  # Safe height
         self.printer.linear_move(x=reel_loc['x'], y=reel_loc['y'], z=reel_focus)
         self.printer.wait_for_idle()
-        
+
+        # Clear camera buffer after movement and LED turn-on
+        time.sleep(0.3)  # Allow LED to stabilize and camera to adjust
+        for _ in range(5):
+            self.vision_upper.capture_frame()
+        time.sleep(0.1)
+
         # Center component in view
         template_path = component['upper_template']
 
@@ -563,7 +574,13 @@ class PnPWorkflow:
         self.printer.control_led(0, True)  # Lower camera LED
         camera_loc = self.printer.camera_location
         self.printer.linear_move(x=camera_loc[0], y=camera_loc[1], z=camera_loc[2])
-        time.sleep(1)
+        self.printer.wait_for_idle()
+
+        # Clear camera buffer after movement and LED turn-on
+        time.sleep(0.3)  # Allow LED to stabilize
+        for _ in range(5):
+            self.vision_lower.capture_frame()
+        time.sleep(0.1)
 
         # Detect component and rotation with retry logic and visual feedback
         lower_template_path = component['lower_template']

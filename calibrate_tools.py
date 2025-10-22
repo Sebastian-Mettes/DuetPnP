@@ -74,6 +74,12 @@ def calibrate_basic_tool(printer: Printer, tool_number: int, camera_config: Came
         printer.control_led(upward_cam, True)  # Turn on upward camera LED
         printer.wait_for_idle()
 
+        # Clear camera buffer after movement and LED turn-on
+        time.sleep(0.3)  # Allow LED to stabilize
+        for _ in range(5):
+            vision.capture_frame()
+        time.sleep(0.1)
+
         # Show live preview before centering starts
         if show_display:
             import cv2
@@ -341,10 +347,15 @@ def calibrate_tool3_camera(printer: Printer, cam0_config: CameraConfig, cam2_con
 
         camera_loc = printer.camera_location
         printer.linear_move(x=camera_loc[0], y=camera_loc[1], z=camera_loc[2])
+        printer.wait_for_idle()
 
         printer.control_led(0, True)
-        printer.wait_for_idle()
-        time.sleep(0.25)
+        time.sleep(0.3)  # Allow LED to stabilize
+
+        # Clear camera buffer after movement and LED turn-on
+        for _ in range(5):
+            vision_lower.capture_frame()
+        time.sleep(0.1)
 
         def detect_target_lower():
             """Detection callback for target on lower camera."""
@@ -415,7 +426,12 @@ def calibrate_tool3_camera(printer: Printer, cam0_config: CameraConfig, cam2_con
                           y=TARGET_PLACE_LOCATION[1],
                           z=TOOL3_CHECK_HEIGHT)
         printer.wait_for_idle()
-        
+
+        # Clear camera buffer after movement and LED turn-on
+        time.sleep(0.3)  # Allow LED to stabilize
+        for _ in range(5):
+            vision_upper.capture_frame()
+        time.sleep(0.1)
 
         def detect_target_upper():
             """Detection callback for target on upper camera."""
