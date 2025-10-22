@@ -383,9 +383,11 @@ class Printer:
         return self.parse_position(self.response)
     
     def linear_move(self, x: Optional[float] = None, y: Optional[float] = None, 
-                   z: Optional[float] = None, feed_rate: int = 6000):
+                   z: Optional[float] = None, feed_rate: int = 6000, f: int = 6000):
         """Move to specified position."""
         self.send_gcode_command("G90", check=False)
+        if f !=6000:
+            feed_rate = f
         move_cmd = "G0"
         if x is not None:
             move_cmd += f" X{x}"

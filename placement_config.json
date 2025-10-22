@@ -2,8 +2,8 @@
     "components": [
         {
             "type": "0402_resistor",
-            "upper_template": "0402_res_above.png",
-            "lower_template": "0402_res_below.png",
+            "upper_template": "./templates/0402_res_above.png",
+            "lower_template": "./templates/0402_res_below.png",
             "feed_number": 2,
             "reel_location": {
                 "x": -59.2,
@@ -11,7 +11,11 @@
                 "z": -9.2
             },
             "reel_focus": 149.6,
-	    "feeder_button_location":30,
+	    "feeder_button_location":{
+            "x": -59.2,
+            "y": 220.1,
+            "z": 30
+        },
             "placements": [
                 {
                     "x": 140.0,

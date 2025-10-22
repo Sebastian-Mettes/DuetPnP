@@ -1,11 +1,34 @@
 {
   "tool": 2,
-  "existing_offset_x": 0,
-  "existing_offset_y": -84.83,
-  "existing_offset_z": -14.5,
-  "measured_correction_x": 4.68,
-  "measured_correction_y": 0.6,
-  "new_offset_x": -4.68,
-  "new_offset_y": -85.43,
-  "calibration_method": "camera centering"
+  "axis_mappings": {
+    "X": "V",
+    "Y": "Y",
+    "Z": "Z"
+  },
+  "current_offsets": {
+    "X": -4.68,
+    "Y": -82.07,
+    "Z": -14.5,
+    "U": 0,
+    "V": -9.47,
+    "A": 0
+  },
+  "new_offsets": {
+    "V": -9.35,
+    "Y": -81.89,
+    "Z": -14.5
+  },
+  "position_difference_X": -0.12,
+  "position_difference_Y": -0.18,
+  "expected_position": [
+    21.6,
+    -56.7,
+    168
+  ],
+  "actual_position": [
+    21.48,
+    -56.88,
+    168
+  ],
+  "calibration_method": "camera centering with axis mapping"
 }
