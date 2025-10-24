@@ -6,15 +6,15 @@
             "lower_template": "./templates/0402_res_below.png",
             "feed_number": 2,
             "reel_location": {
-                "x": -59.2,
-                "y": 220.1,
-                "z": -8.5
+                "x": -65.2,
+                "y": 236.1,
+                "z": 19.1
             },
-            "reel_focus": 149.6,
+            "reel_focus": 177,
             "feeder_button_location": {
-                "x": -59.2,
-                "y": 220.1,
-                "z": 30
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
             },
             "placements": [
                 {

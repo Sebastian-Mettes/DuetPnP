@@ -462,14 +462,14 @@ class PnPWorkflow:
 
         # Press down on button
         press_height = button_loc['z']
-        self.printer.linear_move(z=press_height+30)
-        self.printer.linear_move(z=press_height,f=600)
+        self.printer.linear_move(z=press_height)
+        self.printer.linear_move(z=press_height-15,f=600)
         self.printer.wait_for_idle()
-        self.printer.linear_move(z=press_height + 30)
+        self.printer.linear_move(z=press_height)
 
         #Press again (2x to feed part):
-        self.printer.linear_move(z=press_height,f=600)
-        self.printer.wait_for_idle()
+        #self.printer.linear_move(z=press_height,f=600)
+        #self.printer.wait_for_idle()
         
         # Lift back up
         self.printer.linear_move(z=150)
