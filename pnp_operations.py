@@ -778,6 +778,12 @@ class PnPWorkflow:
 
         print("  ✓ Component placed!")
 
+        # Return C-axis to home orientation (reverse the rotation we applied)
+        if abs(rotation_needed) > 1:
+            print(f"  Returning C-axis to home orientation (-{rotation_needed}°)...")
+            self.printer.rotate_c_axis(-rotation_needed)
+            self.printer.wait_for_idle()
+
         # 5. Capture verification photo
         self.capture_verification_photo(
             component_type=component['type'],
