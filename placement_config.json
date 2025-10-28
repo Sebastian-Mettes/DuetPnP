@@ -6,9 +6,9 @@
             "lower_template": "./templates/0402_res_below.png",
             "feed_number": 2,
             "reel_location": {
-                "x": -65.2,
+                "x": -58.2,
                 "y": 236.1,
-                "z": 19.1
+                "z": 19.3
             },
             "reel_focus": 177,
             "feeder_button_location": {
@@ -20,105 +20,105 @@
                 {
                     "x": 110.0,
                     "y": 113.465,
-                    "z": 0.25,
+                    "z": -1,
                     "rotation": 90,
                     "comment": "Set 1, Position 90°"
                 },
                 {
                     "x": 107.0,
                     "y": 108.2675,
-                    "z": 0.25,
+                    "z": -1,
                     "rotation": 210,
                     "comment": "Set 1, Position 210°"
                 },
                 {
                     "x": 113.0,
                     "y": 108.2675,
-                    "z": 0.25,
+                    "z": -1,
                     "rotation": 330,
                     "comment": "Set 1, Position 330°"
                 },
                 {
                     "x": 125.0,
                     "y": 128.465,
-                    "z": 0.25,
+                    "z":-1,
                     "rotation": 90,
                     "comment": "Set 2, Position 90°"
                 },
                 {
                     "x": 122.0,
                     "y": 123.2675,
-                    "z": 0.25,
+                    "z": -1,
                     "rotation": 210,
                     "comment": "Set 2, Position 210°"
                 },
                 {
                     "x": 128.0,
                     "y": 123.2675,
-                    "z": 0.25,
+                    "z": -1,
                     "rotation": 330,
                     "comment": "Set 2, Position 330°"
                 },
                 {
                     "x": 125.0,
                     "y": 98.465,
-                    "z": 0.25,
+                    "z": -1,
                     "rotation": 90,
                     "comment": "Set 3, Position 90°"
                 },
                 {
                     "x": 122.0,
                     "y": 93.2675,
-                    "z": 0.25,
+                    "z": -1,
                     "rotation": 210,
                     "comment": "Set 3, Position 210°"
                 },
                 {
                     "x": 128.0,
-                    "y": 93.2675,
-                    "z": 0.25,
+                    "y": 92.75,
+                    "z": -1,
                     "rotation": 330,
                     "comment": "Set 3, Position 330°"
                 },
                 {
                     "x": 95.0,
-                    "y": 98.465,
-                    "z": 0.25,
+                    "y": 97.865,
+                    "z": -1,
                     "rotation": 90,
                     "comment": "Set 4, Position 90°"
                 },
                 {
                     "x": 92.0,
-                    "y": 93.2675,
-                    "z": 0.25,
+                    "y": 92.65,
+                    "z": -1,
                     "rotation": 210,
                     "comment": "Set 4, Position 210°"
                 },
                 {
                     "x": 98.0,
-                    "y": 93.2675,
-                    "z": 0.25,
+                    "y": 92.65,
+                    "z": -1,
                     "rotation": 330,
                     "comment": "Set 4, Position 330°"
                 },
                 {
                     "x": 95.0,
-                    "y": 128.465,
-                    "z": 0.25,
+                    "y": 127.65,
+                    "z": -1,
                     "rotation": 90,
                     "comment": "Set 5, Position 90°"
                 },
                 {
                     "x": 92.0,
-                    "y": 123.2675,
-                    "z": 0.25,
+                    "y": 122.5,
+                    "z": -1,
                     "rotation": 210,
                     "comment": "Set 5, Position 210°"
                 },
                 {
                     "x": 98.0,
-                    "y": 123.2675,
-                    "z": 0.25,
+                    "y": 122.5,
+                    "z": -1,
                     "rotation": 330,
                     "comment": "Set 5, Position 330°"
                 }

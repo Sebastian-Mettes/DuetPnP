@@ -15,13 +15,13 @@
   "machine_location": {
     "x": 21.6,
     "y": -56.7,
-    "z": 167.0,
+    "z": 168.0,
     "description": "XYZ coordinates where camera is mounted on machine"
   },
   "transform": {
     "image_flip": "vertical",
     "image_rotate": 270,
-    "pixel_to_mm": 0.015,
+    "pixel_to_mm": 0.020,
     "pixel_x_to_machine_x": 1.0,
     "pixel_x_to_machine_y": 0.0,
     "pixel_y_to_machine_x": 0.0,

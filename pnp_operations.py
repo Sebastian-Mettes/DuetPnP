@@ -463,7 +463,7 @@ class PnPWorkflow:
         # Press down on button
         press_height = button_loc['z']
         self.printer.linear_move(z=press_height)
-        self.printer.linear_move(z=press_height-15,f=600)
+        self.printer.linear_move(z=press_height-20,f=600)
         self.printer.wait_for_idle()
         self.printer.linear_move(z=press_height)
 
@@ -497,7 +497,7 @@ class PnPWorkflow:
         # 0. Press feeder button to advance component (if configured)
         if 'feeder_button_location' in component:
             print("  0. Advancing feeder...")
-            self.press_feeder_button(component)
+            #self.press_feeder_button(component)
 
         # 1. Locate component in feeder
         print("  1. Locating component...")
