@@ -21,7 +21,7 @@
   "transform": {
     "image_flip": "vertical",
     "image_rotate": 270,
-    "pixel_to_mm": 0.020,
+    "pixel_to_mm": 0.0215,
     "pixel_x_to_machine_x": 1.0,
     "pixel_x_to_machine_y": 0.0,
     "pixel_y_to_machine_x": 0.0,

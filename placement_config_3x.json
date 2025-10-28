@@ -1,0 +1,86 @@
+{
+    "components": [
+        {
+            "type": "0402_resistor",
+            "upper_template": "./templates/0402_res_above.png",
+            "lower_template": "./templates/0402_res_below.png",
+            "feed_number": 2,
+            "reel_location": {
+                "x": -58.2,
+                "y": 236.1,
+                "z": 19.3
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 102.672,
+                    "y": 118.226,
+                    "z": 0.7,
+                    "rotation": 60,
+                    "comment": "Set 1 (top left), Position 60°"
+                },
+                {
+                    "x": 97.482,
+                    "y": 115.23,
+                    "z": 0.7,
+                    "rotation": 180,
+                    "comment": "Set 1 (top left), Position 180°"
+                },
+                {
+                    "x": 102.672,
+                    "y": 112.234,
+                    "z": 0.7,
+                    "rotation": 300,
+                    "comment": "Set 1 (top left), Position 300°"
+                },
+                {
+                    "x": 120.788,
+                    "y": 118.226,
+                    "z": 0.7,
+                    "rotation": 60,
+                    "comment": "Set 2 (top right), Position 60°"
+                },
+                {
+                    "x": 115.598,
+                    "y": 115.23,
+                    "z": 0.7,
+                    "rotation": 180,
+                    "comment": "Set 2 (top right), Position 180°"
+                },
+                {
+                    "x": 120.788,
+                    "y": 112.234,
+                    "z": 0.7,
+                    "rotation": 300,
+                    "comment": "Set 2 (top right), Position 300°"
+                },
+                {
+                    "x": 111.73,
+                    "y": 102.536,
+                    "z": 0.7,
+                    "rotation": 60,
+                    "comment": "Set 3 (lower), Position 60°"
+                },
+                {
+                    "x": 106.54,
+                    "y": 99.54,
+                    "z": 0.7,
+                    "rotation": 180,
+                    "comment": "Set 3 (lower), Position 180°"
+                },
+                {
+                    "x": 111.73,
+                    "y": 96.544,
+                    "z": 0.7,
+                    "rotation": 300,
+                    "comment": "Set 3 (lower), Position 300°"
+                }
+            ]
+        }
+    ]
+}

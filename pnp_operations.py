@@ -431,17 +431,26 @@ class PnPWorkflow:
             else:
                 print("Invalid choice. Please enter R, S, or A.")
 
-    def press_feeder_button(self, component: Dict) -> bool:
+    def press_feeder_button(self, component: Dict,feed_rate: int = 2) -> bool:
         """
         Press the feeder button to advance a new component.
 
         Args:
             component: Component configuration dictionary
-
+            feed_rate: Number of components fed per button press
         Returns:
             bool: True if successful, False otherwise
         """
         # Check if feeder_button_location is configured
+
+        if not hasattr(self, 'pressed'):
+            self.pressed = 1
+        elif self.pressed == feed_rate:           
+            self.pressed = 1
+        else:
+            self.pressed += 1
+            return True
+
         if 'feeder_button_location' not in component:
             print("  Warning: No feeder_button_location configured for this component")
             return False
@@ -463,7 +472,7 @@ class PnPWorkflow:
         # Press down on button
         press_height = button_loc['z']
         self.printer.linear_move(z=press_height)
-        self.printer.linear_move(z=press_height-20,f=600)
+        self.printer.linear_move(z=press_height-20,f=300)
         self.printer.wait_for_idle()
         self.printer.linear_move(z=press_height)
 
@@ -497,7 +506,7 @@ class PnPWorkflow:
         # 0. Press feeder button to advance component (if configured)
         if 'feeder_button_location' in component:
             print("  0. Advancing feeder...")
-            #self.press_feeder_button(component)
+            self.press_feeder_button(component)
 
         # 1. Locate component in feeder
         print("  1. Locating component...")
