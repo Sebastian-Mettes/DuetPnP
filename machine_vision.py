@@ -582,5 +582,12 @@ def load_camera_config(camera_number: int) -> CameraConfig:
     Returns:
         CameraConfig instance
     """
-    config_file = f"config/camera_config_{camera_number}.json"
+    try:
+        config_file = f"config/camera_config_{camera_number}.json"
+    except:
+        print('camera config not file, trying one foler up')
+        try:
+            config_file = f"../config/camera_config_{camera_number}.json"
+        except:
+            print('camera config file not found!')
     return CameraConfig(config_file)

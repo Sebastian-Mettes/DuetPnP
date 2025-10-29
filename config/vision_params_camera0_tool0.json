@@ -14,7 +14,7 @@
         "minDist": 100,
         "param1": 100,
         "param2": 14,
-        "minRadius": 28,
-        "maxRadius": 32
+        "minRadius": 23,
+        "maxRadius": 27
     }
 }

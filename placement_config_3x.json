@@ -8,7 +8,7 @@
             "reel_location": {
                 "x": -58.2,
                 "y": 236.1,
-                "z": 19.3
+                "z": 20.5
             },
             "reel_focus": 177,
             "feeder_button_location": {
@@ -17,27 +17,6 @@
                 "z": 20.3
             },
             "placements": [
-                {
-                    "x": 102.672,
-                    "y": 118.226,
-                    "z": 0.7,
-                    "rotation": 60,
-                    "comment": "Set 1 (top left), Position 60°"
-                },
-                {
-                    "x": 97.482,
-                    "y": 115.23,
-                    "z": 0.7,
-                    "rotation": 180,
-                    "comment": "Set 1 (top left), Position 180°"
-                },
-                {
-                    "x": 102.672,
-                    "y": 112.234,
-                    "z": 0.7,
-                    "rotation": 300,
-                    "comment": "Set 1 (top left), Position 300°"
-                },
                 {
                     "x": 120.788,
                     "y": 118.226,
@@ -60,22 +39,43 @@
                     "comment": "Set 2 (top right), Position 300°"
                 },
                 {
-                    "x": 111.73,
-                    "y": 102.536,
+                    "x": 111.5,
+                    "y": 102.25,
                     "z": 0.7,
                     "rotation": 60,
                     "comment": "Set 3 (lower), Position 60°"
                 },
                 {
-                    "x": 106.54,
-                    "y": 99.54,
+                    "x": 102.172,
+                    "y": 117.726,
+                    "z": 0.7,
+                    "rotation": 60,
+                    "comment": "Set 1 (top left), Position 60°"
+                },
+                {
+                    "x": 96.982,
+                    "y": 114.73,
+                    "z": 0.7,
+                    "rotation": 180,
+                    "comment": "Set 1 (top left), Position 180°"
+                },
+                {
+                    "x": 102.272,
+                    "y": 111.834,
+                    "z": 0.7,
+                    "rotation": 300,
+                    "comment": "Set 1 (top left), Position 300°"
+                },
+                {
+                    "x": 106.14,
+                    "y": 99.14,
                     "z": 0.7,
                     "rotation": 180,
                     "comment": "Set 3 (lower), Position 180°"
                 },
                 {
-                    "x": 111.73,
-                    "y": 96.544,
+                    "x": 111.33,
+                    "y": 96.144,
                     "z": 0.7,
                     "rotation": 300,
                     "comment": "Set 3 (lower), Position 300°"

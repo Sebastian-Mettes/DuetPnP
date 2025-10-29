@@ -140,7 +140,7 @@ class PnPWorkflow:
                                        camera_config=camera_configs[0])
         
         # Centering parameters
-        self.TOLERANCE = 2
+        self.TOLERANCE = 0
         self.MAX_ITERATIONS = 20
 
         # Checkpoint state
@@ -506,7 +506,7 @@ class PnPWorkflow:
         # 0. Press feeder button to advance component (if configured)
         if 'feeder_button_location' in component:
             print("  0. Advancing feeder...")
-            self.press_feeder_button(component)
+            #self.press_feeder_button(component)
 
         # 1. Locate component in feeder
         print("  1. Locating component...")

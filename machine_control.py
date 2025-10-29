@@ -569,7 +569,7 @@ def center_target_in_camera(
     vision: VisionTools,
     camera_config: CameraConfig,
     detection_method: Callable,
-    tolerance: int = 2,
+    tolerance: int = 0,
     max_iterations: int = 20,
     feed_rate: int = 300,
     debug: bool = False,
