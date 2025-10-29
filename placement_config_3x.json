@@ -18,67 +18,88 @@
             },
             "placements": [
                 {
-                    "x": 120.788,
-                    "y": 118.226,
+                    "x": 80.0,
+                    "y": 83.46,
                     "z": 0.7,
-                    "rotation": 60,
-                    "comment": "Set 2 (top right), Position 60°"
+                    "rotation": 90,
+                    "comment": "Position 1"
                 },
                 {
-                    "x": 115.598,
+                    "x": 77.0036,
+                    "y": 78.27,
+                    "z": 0.7,
+                    "rotation": 210,
+                    "comment": "Position 2"
+                },
+                {
+                    "x": 82.9964,
+                    "y": 78.27,
+                    "z": 0.7,
+                    "rotation": 330,
+                    "comment": "Position 3"
+                },
+                {
+                    "x": 102.67,
+                    "y": 118.2264,
+                    "z": 0.7,
+                    "rotation": 60,
+                    "comment": "Position 4"
+                },
+                {
+                    "x": 120.79,
+                    "y": 118.2264,
+                    "z": 0.7,
+                    "rotation": 60,
+                    "comment": "Position 5"
+                },
+                {
+                    "x": 111.73,
+                    "y": 102.5364,
+                    "z": 0.7,
+                    "rotation": 60,
+                    "comment": "Position 6"
+                },
+                {
+                    "x": 97.48,
                     "y": 115.23,
                     "z": 0.7,
                     "rotation": 180,
-                    "comment": "Set 2 (top right), Position 180°"
+                    "comment": "Position 7"
                 },
                 {
-                    "x": 120.788,
-                    "y": 112.234,
-                    "z": 0.7,
-                    "rotation": 300,
-                    "comment": "Set 2 (top right), Position 300°"
-                },
-                {
-                    "x": 111.5,
-                    "y": 102.25,
-                    "z": 0.7,
-                    "rotation": 60,
-                    "comment": "Set 3 (lower), Position 60°"
-                },
-                {
-                    "x": 102.172,
-                    "y": 117.726,
-                    "z": 0.7,
-                    "rotation": 60,
-                    "comment": "Set 1 (top left), Position 60°"
-                },
-                {
-                    "x": 96.982,
-                    "y": 114.73,
+                    "x": 115.6,
+                    "y": 115.23,
                     "z": 0.7,
                     "rotation": 180,
-                    "comment": "Set 1 (top left), Position 180°"
+                    "comment": "Position 8"
                 },
                 {
-                    "x": 102.272,
-                    "y": 111.834,
-                    "z": 0.7,
-                    "rotation": 300,
-                    "comment": "Set 1 (top left), Position 300°"
-                },
-                {
-                    "x": 106.14,
-                    "y": 99.14,
+                    "x": 106.54,
+                    "y": 99.54,
                     "z": 0.7,
                     "rotation": 180,
-                    "comment": "Set 3 (lower), Position 180°"
+                    "comment": "Position 9"
                 },
                 {
-                    "x": 111.33,
-                    "y": 96.144,
+                    "x": 102.67,
+                    "y": 112.2336,
                     "z": 0.7,
                     "rotation": 300,
-                    "comment": "Set 3 (lower), Position 300°"
+                    "comment": "Position 10"
+                },
+                {
+                    "x": 120.79,
+                    "y": 112.2336,
+                    "z": 0.7,
+                    "rotation": 300,
+                    "comment": "Position 11"
+                },
+                {
+                    "x": 111.73,
+                    "y": 96.5436,
+                    "z": 0.7,
+                    "rotation": 300,
+                    "comment": "Position 12"
                 }
             ]
         }
