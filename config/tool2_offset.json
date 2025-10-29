@@ -6,28 +6,28 @@
     "Z": "Z"
   },
   "current_offsets": {
-    "X": -4.68,
-    "Y": -78.91,
-    "Z": -12.5,
+    "X": 0,
+    "Y": -74.3,
+    "Z": -13.75,
     "U": 0,
-    "V": -7.53,
+    "V": -10.55,
     "A": 0
   },
   "new_offsets": {
-    "V": -7.45,
-    "Y": -78.83,
-    "Z": -12.5
+    "V": -7.67,
+    "Y": -78.22,
+    "Z": -13.75
   },
-  "position_difference_X": -0.08,
-  "position_difference_Y": -0.08,
+  "position_difference_X": -2.88,
+  "position_difference_Y": 3.92,
   "expected_position": [
     21.6,
     -56.7,
     168
   ],
   "actual_position": [
-    21.52,
-    -56.78,
+    18.72,
+    -52.78,
     168
   ],
   "calibration_method": "camera centering with axis mapping"
