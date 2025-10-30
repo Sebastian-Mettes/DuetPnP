@@ -8,7 +8,7 @@
             "reel_location": {
                 "x": -58.2,
                 "y": 236.1,
-                "z": 20.5
+                "z": 20.0
             },
             "reel_focus": 177,
             "feeder_button_location": {
@@ -53,51 +53,51 @@
                     "comment": "Position 5"
                 },
                 {
-                    "x": 111.73,
-                    "y": 102.5364,
+                    "x": 111.43,
+                    "y": 102.2364,
                     "z": 0.7,
                     "rotation": 60,
                     "comment": "Position 6"
                 },
                 {
-                    "x": 97.48,
-                    "y": 115.23,
+                    "x": 97.08,
+                    "y": 114.83,
                     "z": 0.7,
                     "rotation": 180,
                     "comment": "Position 7"
                 },
                 {
-                    "x": 115.6,
-                    "y": 115.23,
+                    "x": 115.3,
+                    "y": 114.83,
                     "z": 0.7,
                     "rotation": 180,
                     "comment": "Position 8"
                 },
                 {
-                    "x": 106.54,
-                    "y": 99.54,
-                    "z": 0.7,
+                    "x": 106.24,
+                    "y": 99.14,
+                    "z": 0.4,
                     "rotation": 180,
                     "comment": "Position 9"
                 },
                 {
-                    "x": 102.67,
-                    "y": 112.2336,
-                    "z": 0.7,
+                    "x": 102.37,
+                    "y": 111.8336,
+                    "z": 0.4,
                     "rotation": 300,
                     "comment": "Position 10"
                 },
                 {
-                    "x": 120.79,
-                    "y": 112.2336,
-                    "z": 0.7,
+                    "x": 120.49,
+                    "y": 111.8336,
+                    "z": 0.4,
                     "rotation": 300,
                     "comment": "Position 11"
                 },
                 {
-                    "x": 111.73,
-                    "y": 96.5436,
-                    "z": 0.7,
+                    "x": 111.53,
+                    "y": 96.1436,
+                    "z": 0.4,
                     "rotation": 300,
                     "comment": "Position 12"
                 }
