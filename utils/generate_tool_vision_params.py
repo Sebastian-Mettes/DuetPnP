@@ -178,6 +178,9 @@ def calibrate_tool_vision(camera_number: int, tool_number: int):
                     # Add radius text
                     cv2.putText(gray, f"r={i[2]}", (i[0]+10, i[1]),
                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+                    # Add coordinate text
+                    cv2.putText(gray, f"({i[0]}, {i[1]})", (i[0]+10, i[1]+20),
+                              cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
             # Display
             cv2.imshow('Camera Feed', gray)
@@ -352,6 +355,9 @@ def calibrate_target_vision(camera_number: int):
                     cv2.circle(gray, (i[0], i[1]), 2, (0, 0, 255), 3)
                     # Add radius text
                     cv2.putText(gray, f"r={i[2]}", (i[0]+10, i[1]),
+                              cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+                    # Add coordinate text
+                    cv2.putText(gray, f"({i[0]}, {i[1]})", (i[0]+10, i[1]+20),
                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
             # Display
