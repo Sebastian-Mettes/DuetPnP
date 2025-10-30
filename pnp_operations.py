@@ -761,7 +761,10 @@ class PnPWorkflow:
                 'X': current_pos['X'] - camera_loc[0],
                 'Y': current_pos['Y'] - camera_loc[1]
             }
+            print(f"  DEBUG: Camera location: X{camera_loc[0]:.3f}, Y{camera_loc[1]:.3f}")
+            print(f"  DEBUG: Current position: X{current_pos['X']:.3f}, Y{current_pos['Y']:.3f}")
             print(f"  ✓ Component offset: X{component_offset['X']:+.3f}, Y{component_offset['Y']:+.3f}")
+            print(f"  DEBUG: Will place at target + offset")
         else:
             print("  Warning: Could not center component, using no offset")
             component_offset = {'X': 0, 'Y': 0}
@@ -771,11 +774,31 @@ class PnPWorkflow:
         # 4. Place component (with offset correction)
         print("  4. Placing component...")
         target_pos = placement
+
+        # Method 1: target + component_offset
+        final_x = target_pos['x'] + component_offset['X']
+        final_y = target_pos['y'] + component_offset['Y']
+
+        # Method 2: current_pos + (target - camera_loc)
+        # This should give the same result as Method 1
+        alt_final_x = current_pos['X'] + (target_pos['x'] - camera_loc[0])
+        alt_final_y = current_pos['Y'] + (target_pos['y'] - camera_loc[1])
+
+        # Sanity check: both methods should match
+        diff_x = abs(final_x - alt_final_x)
+        diff_y = abs(final_y - alt_final_y)
+
+        print(f"  DEBUG: Target position: X{target_pos['x']:.3f}, Y{target_pos['y']:.3f}")
+        print(f"  DEBUG: Method 1 (target + offset): X{final_x:.3f}, Y{final_y:.3f}")
+        print(f"  DEBUG: Method 2 (current + delta): X{alt_final_x:.3f}, Y{alt_final_y:.3f}")
+
+        if diff_x > 0.001 or diff_y > 0.001:
+            print(f"  ⚠️  WARNING: Calculation mismatch! Diff: X{diff_x:.4f}, Y{diff_y:.4f}")
+        else:
+            print(f"  ✓ Calculations match (diff < 0.001mm)")
+
         self.printer.linear_move(z=150)  # Safe height
-        self.printer.linear_move(
-            x=target_pos['x'] + component_offset['X'],
-            y=target_pos['y'] + component_offset['Y']
-        )
+        self.printer.linear_move(x=final_x, y=final_y)
         self.printer.linear_move(z=target_pos['z'])
         self.printer.wait_for_idle()  # CRITICAL: Wait for Z to reach placement height
 

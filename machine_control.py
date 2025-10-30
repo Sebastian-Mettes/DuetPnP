@@ -663,8 +663,13 @@ def center_target_in_camera(
             # Calculate pixel offsets from center
             x_pixel_offset = image_center[0] - x_pixel
             y_pixel_offset = image_center[1] - y_pixel
+
+            if debug:
+                print(f"  DEBUG Centering: Image center={image_center}, Detected pos=({x_pixel:.1f}, {y_pixel:.1f})")
+                print(f"  DEBUG Centering: Pixel offset=({x_pixel_offset:.1f}, {y_pixel_offset:.1f})")
+
             printer.wait_for_idle()
-            
+
             # Show visual feedback if enabled
             if show_display and frame is not None:
                 status_text = f"Iter {iteration+1}/{max_iterations} | Offset: ({x_pixel_offset:.1f}, {y_pixel_offset:.1f})px"
@@ -706,10 +711,16 @@ def center_target_in_camera(
                 x_pixel_offset, y_pixel_offset
             )
 
+            if debug:
+                print(f"  DEBUG Centering: Machine move=({x_move:+.4f}, {y_move:+.4f})mm")
+
             # Get current position and calculate new position
             current_pos = printer.get_current_position()
             new_x = current_pos['X'] + x_move
             new_y = current_pos['Y'] + y_move
+
+            if debug:
+                print(f"  DEBUG Centering: Current=({current_pos['X']:.3f}, {current_pos['Y']:.3f}) -> New=({new_x:.3f}, {new_y:.3f})")
 
             # Move to new position
             printer.linear_move(x=new_x, y=new_y, feed_rate=feed_rate)

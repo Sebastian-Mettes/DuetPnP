@@ -288,7 +288,10 @@ class VisionTools:
             template = self._template_cache[template_path]
 
         image_height, image_width = self.search_frame.shape[:2]
+        old_center = self.IMAGE_CENTER
         self.IMAGE_CENTER = (image_width // 2, image_height // 2)
+        if old_center != self.IMAGE_CENTER:
+            print(f"WARNING: IMAGE_CENTER changed from {old_center} to {self.IMAGE_CENTER}")
 
         # Downsample for faster search
         scale_factor = 0.5
