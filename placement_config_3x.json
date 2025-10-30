@@ -18,88 +18,88 @@
             },
             "placements": [
                 {
-                    "x": 80.0,
-                    "y": 83.46,
-                    "z": 0.7,
+                    "x": 79.5,
+                    "y": 83.06,
+                    "z": 0.5,
                     "rotation": 90,
-                    "comment": "Position 1"
+                    "comment": "Position 1 (offset applied: -0.5x, -0.4y)"
                 },
                 {
-                    "x": 77.0036,
-                    "y": 78.27,
-                    "z": 0.7,
+                    "x": 76.5036,
+                    "y": 77.87,
+                    "z": 0.5,
                     "rotation": 210,
-                    "comment": "Position 2"
+                    "comment": "Position 2 (offset applied: -0.5x, -0.4y)"
                 },
                 {
-                    "x": 82.9964,
-                    "y": 78.27,
-                    "z": 0.7,
+                    "x": 82.4964,
+                    "y": 77.87,
+                    "z": 0.5,
                     "rotation": 330,
-                    "comment": "Position 3"
+                    "comment": "Position 3 (offset applied: -0.5x, -0.4y)"
                 },
                 {
-                    "x": 102.67,
-                    "y": 118.2264,
-                    "z": 0.7,
+                    "x": 102.17,
+                    "y": 117.8264,
+                    "z": 0.5,
                     "rotation": 60,
-                    "comment": "Position 4"
+                    "comment": "Position 4 (offset applied: -0.5x, -0.4y)"
                 },
                 {
-                    "x": 120.79,
-                    "y": 118.2264,
-                    "z": 0.7,
+                    "x": 120.29,
+                    "y": 117.8264,
+                    "z": 0.5,
                     "rotation": 60,
-                    "comment": "Position 5"
+                    "comment": "Position 5 (offset applied: -0.5x, -0.4y)"
                 },
                 {
-                    "x": 111.43,
-                    "y": 102.2364,
-                    "z": 0.7,
+                    "x": 111.23,
+                    "y": 102.1364,
+                    "z": 0.5,
                     "rotation": 60,
-                    "comment": "Position 6"
+                    "comment": "Position 6 (offset applied: -0.5x, -0.4y)"
                 },
                 {
-                    "x": 97.08,
+                    "x": 96.98,
                     "y": 114.83,
-                    "z": 0.7,
+                    "z": 0.5,
                     "rotation": 180,
-                    "comment": "Position 7"
+                    "comment": "Position 7 (offset applied: -0.5x, -0.4y)"
                 },
                 {
-                    "x": 115.3,
+                    "x": 115.1,
                     "y": 114.83,
-                    "z": 0.7,
+                    "z": 0.5,
                     "rotation": 180,
-                    "comment": "Position 8"
+                    "comment": "Position 8 (offset applied: -0.5x, -0.4y)"
                 },
                 {
-                    "x": 106.24,
+                    "x": 106.04,
                     "y": 99.14,
-                    "z": 0.4,
+                    "z": 0.5,
                     "rotation": 180,
-                    "comment": "Position 9"
+                    "comment": "Position 9 (offset applied: -0.5x, -0.4y)"
                 },
                 {
-                    "x": 102.37,
+                    "x": 102.17,
                     "y": 111.8336,
-                    "z": 0.4,
+                    "z": 0.5,
                     "rotation": 300,
-                    "comment": "Position 10"
+                    "comment": "Position 10 (offset applied: -0.5x, -0.4y)"
                 },
                 {
-                    "x": 120.49,
+                    "x": 120.29,
                     "y": 111.8336,
-                    "z": 0.4,
+                    "z": 0.5,
                     "rotation": 300,
-                    "comment": "Position 11"
+                    "comment": "Position 11 (offset applied: -0.5x, -0.4y)"
                 },
                 {
-                    "x": 111.53,
+                    "x": 111.23,
                     "y": 96.1436,
-                    "z": 0.4,
+                    "z": 0.5,
                     "rotation": 300,
-                    "comment": "Position 12"
+                    "comment": "Position 12 (offset applied: -0.5x, -0.4y)"
                 }
             ]
         }
