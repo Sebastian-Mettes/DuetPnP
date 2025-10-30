@@ -290,8 +290,9 @@ class VisionTools:
         image_height, image_width = self.search_frame.shape[:2]
         old_center = self.IMAGE_CENTER
         self.IMAGE_CENTER = (image_width // 2, image_height // 2)
+        print(f"DEBUG find_component: Frame dimensions: {image_width}x{image_height}, IMAGE_CENTER: {self.IMAGE_CENTER}")
         if old_center != self.IMAGE_CENTER:
-            print(f"WARNING: IMAGE_CENTER changed from {old_center} to {self.IMAGE_CENTER}")
+            print(f"⚠️  WARNING: IMAGE_CENTER changed from {old_center} to {self.IMAGE_CENTER}")
 
         # Downsample for faster search
         scale_factor = 0.5
@@ -383,7 +384,12 @@ class VisionTools:
         # Check if match is good enough
         if best_score > 0.6:
             h, w = best_template_shape
-            center = (best_match[0] + w//2, best_match[1] + h//2)
+            # TEMPORARY TEST: Try different offset multipliers
+            # Normal: center = (best_match[0] + w//2, best_match[1] + h//2)
+            # Test 0x: center = (best_match[0] + 0, best_match[1] + 0)  # No offset
+            # Test 2x: center = (best_match[0] + w, best_match[1] + h)  # Double offset
+            center = (best_match[0] + w//2, best_match[1] + h//2)  # NORMAL (1x offset)
+            print(f"DEBUG template_match: best_match top-left=({best_match[0]}, {best_match[1]}), template_size=({w}x{h}), adding offset=({w//2}, {h//2}), final_center={center}")
             self.is_component_detected = True
             return (center, best_angle)
         else:
