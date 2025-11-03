@@ -6,8 +6,8 @@
     "Z": "Z"
   },
   "current_offsets": {
-    "X": 0.187,
-    "Y": -96.824,
+    "X": 0.445,
+    "Y": -96.738,
     "Z": -15.32,
     "U": 0,
     "V": 0,
@@ -15,10 +15,10 @@
   },
   "new_offsets": {
     "X": 0.359,
-    "Y": -96.738,
+    "Y": -96.652,
     "Z": -15.32
   },
-  "position_difference_X": -0.172,
+  "position_difference_X": 0.086,
   "position_difference_Y": -0.086,
   "expected_position": [
     21.6,
@@ -26,7 +26,7 @@
     168
   ],
   "actual_position": [
-    21.428,
+    21.686,
     -56.786,
     168
   ],

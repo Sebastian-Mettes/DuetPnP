@@ -13,8 +13,8 @@
         "dp": 0.1,
         "minDist": 100,
         "param1": 100,
-        "param2": 14,
-        "minRadius": 23,
-        "maxRadius": 27
+        "param2": 17,
+        "minRadius": 25,
+        "maxRadius": 28
     }
 }

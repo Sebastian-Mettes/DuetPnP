@@ -7,18 +7,18 @@
   },
   "current_offsets": {
     "X": 0,
-    "Y": -65.483,
-    "Z": -8.06,
-    "U": -162.349,
+    "Y": -65.139,
+    "Z": -2.54,
+    "U": -162.521,
     "V": 0,
     "A": 0
   },
   "new_offsets": {
-    "U": -162.349,
-    "Y": -65.569,
-    "Z": -8.06
+    "U": -162.435,
+    "Y": -65.225,
+    "Z": -2.54
   },
-  "position_difference_X": 0,
+  "position_difference_X": -0.086,
   "position_difference_Y": 0.086,
   "expected_position": [
     21.6,
@@ -26,7 +26,7 @@
     168
   ],
   "actual_position": [
-    21.6,
+    21.514,
     -56.614,
     168
   ],

@@ -12,9 +12,9 @@
     "circle_params": {
         "dp": 1,
         "minDist": 100,
-        "param1": 100,
+        "param1": 140,
         "param2": 10,
-        "minRadius": 5,
-        "maxRadius": 12
+        "minRadius": 12,
+        "maxRadius": 14
     }
 }
