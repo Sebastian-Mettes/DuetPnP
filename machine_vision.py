@@ -319,7 +319,7 @@ class VisionTools:
         if exact_angle:
             coarse_angles = [angle]  # Single angle only
         else:
-            coarse_angles = list(range(-15 + angle, 16 + angle, 5))  # Full search
+            coarse_angles = list(range(-15 + angle, 16 + angle, 1))  # Full search
 
         coarse_best_angle = 0
         coarse_best_score = -1

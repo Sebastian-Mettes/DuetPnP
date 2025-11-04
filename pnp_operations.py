@@ -516,8 +516,8 @@ class PnPWorkflow:
         # Move upper camera to feeder location
         self.printer.select_tool(3)  # Camera tool
         self.printer.control_led(2, True)  # Upper camera LED
-        self.printer.linear_move(z=150)  # Safe height
-        self.printer.linear_move(x=reel_loc['x'], y=reel_loc['y'], z=reel_focus)
+        self.printer.linear_move(z=150,f = 6000)  # Safe height
+        self.printer.linear_move(x=reel_loc['x'], y=reel_loc['y'], z=reel_focus, f=6000)
         self.printer.wait_for_idle()
 
         # Clear camera buffer after movement and LED turn-on
@@ -565,38 +565,39 @@ class PnPWorkflow:
         self.printer.select_tool(2)  # PnP tool
 
 
-        self.printer.linear_move(z=150) #Lift to safe height
-        self.printer.linear_move(x=pickup_pos['X']-0.5, y=pickup_pos['Y']-0.4)
+        self.printer.linear_move(z=150,f=6000) #Lift to safe height
+        self.printer.linear_move(x=pickup_pos['X']-0.6, y=pickup_pos['Y']-0.5,f=6000) #Note - manual offsets
         self.printer.wait_for_idle()
         self.printer.control_solenoid(True)
         self.printer.control_vacuum(True)
-        time.sleep(0.25)
+        #time.sleep(0.25) no longer necessary
         z_pickup_height = component.get('reel_location').get('z', 0)
+        self.printer.linear_move(z=z_pickup_height+5,f=6000)
         self.printer.linear_move(z=z_pickup_height) #Move to pickup height
         self.printer.wait_for_idle()
-        time.sleep(0.33)
-        self.printer.linear_move(z=150) #Lift to safe height
+        time.sleep(0.1) #Ensure Part is picked up.
+        self.printer.linear_move(z=150, f=6000) #Lift to safe height
         self.printer.wait_for_idle()
         
         # 3. Determine orientation with lower camera
         print("  3. Checking component orientation...")
         self.printer.control_led(0, True)  # Lower camera LED
         camera_loc = self.printer.camera_location
+        self.printer.linear_move(x=camera_loc[0]+5,y=camera_loc[1]+5,z=camera_loc[2], f=6000) #Move to safe location
         self.printer.linear_move(x=camera_loc[0], y=camera_loc[1], z=camera_loc[2])
         self.printer.wait_for_idle()
 
         # Clear camera buffer after movement and LED turn-on
-        time.sleep(0.3)  # Allow LED to stabilize
+        #time.sleep(0.3)  # Allow LED to stabilize
         for _ in range(5):
             self.vision_lower.capture_frame()
-        time.sleep(0.1)
 
         # Detect component and rotation with retry logic and visual feedback
         lower_template_path = component['lower_template']
         desired_angle = placement.get('rotation', 0)
 
         # Keep trying until component is detected
-        max_detection_attempts = 30
+        max_detection_attempts = 20
         detection_attempt = 0
         detected_angle = None
         center_pos = None
@@ -789,24 +790,25 @@ class PnPWorkflow:
         diff_y = abs(final_y - alt_final_y)
 
         print(f"  DEBUG: Target position: X{target_pos['x']:.3f}, Y{target_pos['y']:.3f}")
-        print(f"  DEBUG: Method 1 (target + offset): X{final_x:.3f}, Y{final_y:.3f}")
-        print(f"  DEBUG: Method 2 (current + delta): X{alt_final_x:.3f}, Y{alt_final_y:.3f}")
+        # print(f"  DEBUG: Method 1 (target + offset): X{final_x:.3f}, Y{final_y:.3f}")
+        # print(f"  DEBUG: Method 2 (current + delta): X{alt_final_x:.3f}, Y{alt_final_y:.3f}")
 
-        if diff_x > 0.001 or diff_y > 0.001:
-            print(f"  ⚠️  WARNING: Calculation mismatch! Diff: X{diff_x:.4f}, Y{diff_y:.4f}")
-        else:
-            print(f"  ✓ Calculations match (diff < 0.001mm)")
+        # if diff_x > 0.001 or diff_y > 0.001:
+        #     print(f"  ⚠️  WARNING: Calculation mismatch! Diff: X{diff_x:.4f}, Y{diff_y:.4f}")
+        # else:
+        #     print(f"  ✓ Calculations match (diff < 0.001mm)")
 
-        self.printer.linear_move(z=150)  # Safe height
-        self.printer.linear_move(x=final_x, y=final_y)
+        self.printer.linear_move(z=150,f=6000)  # Safe height
+        self.printer.linear_move(x=final_x-5, y=final_y-5, f=6000) #Note - manual offsets
+        self.printer.linear_move(x=final_x, y=final_y, f=300)
+        self.printer.linear_move(z=target_pos['z']+10,f=6000)
         self.printer.linear_move(z=target_pos['z'])
         self.printer.wait_for_idle()  # CRITICAL: Wait for Z to reach placement height
 
         self.printer.control_solenoid(False)  # Release
-        time.sleep(0.5)
         self.printer.control_vacuum(False)
         time.sleep(0.5)
-        self.printer.linear_move(z=150)
+        self.printer.linear_move(z=150,f=6000)
 
         print("  ✓ Component placed!")
 
@@ -817,10 +819,10 @@ class PnPWorkflow:
             self.printer.wait_for_idle()
 
         # 5. Capture verification photo
-        self.capture_verification_photo(
-            component_type=component['type'],
-            placement_number=placement_number,
-            placement_pos=placement
-        )
+        # self.capture_verification_photo(
+        #     component_type=component['type'],
+        #     placement_number=placement_number,
+        #     placement_pos=placement
+        # )
 
         return True
