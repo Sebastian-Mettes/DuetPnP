@@ -18,88 +18,95 @@
             },
             "placements": [
                 {
-                    "x": 79.8,
-                    "y": 83.31,
-                    "z": 0.5,
+                    "x": 70.0,
+                    "y": 120.0,
+                    "z": 0.3,
+                    "rotation": 0,
+                    "comment": "Position 1"
+                },
+                {
+                    "x": 80.0,
+                    "y": 110.0,
+                    "z": 0.3,
                     "rotation": 90,
-                    "comment": "Position 1 (offset applied: x-0.20, y-0.15)"
+                    "comment": "Position 2"
                 },
                 {
-                    "x": 76.8036,
-                    "y": 78.12,
-                    "z": 0.5,
-                    "rotation": 210,
-                    "comment": "Position 2 (offset applied: x-0.20, y-0.15)"
+                    "x": 70.0,
+                    "y": 100.0,
+                    "z": 0.3,
+                    "rotation": 90,
+                    "comment": "Position 3"
                 },
                 {
-                    "x": 82.7964,
-                    "y": 78.12,
-                    "z": 0.5,
-                    "rotation": 330,
-                    "comment": "Position 3 (offset applied: x-0.20, y-0.15)"
+                    "x": 80.0,
+                    "y": 80.0,
+                    "z": 0.3,
+                    "rotation": 0,
+                    "comment": "Position 4"
                 },
                 {
-                    "x": 102.47,
-                    "y": 118.0764,
-                    "z": 0.5,
+                    "x": 102.67,
+                    "y": 118.2264,
+                    "z": 0.3,
                     "rotation": 60,
-                    "comment": "Position 4 (offset applied: x-0.20, y-0.15)"
+                    "comment": "Position 5"
                 },
                 {
-                    "x": 120.59,
-                    "y": 118.0764,
-                    "z": 0.5,
+                    "x": 120.79,
+                    "y": 118.2264,
+                    "z": 0.3,
                     "rotation": 60,
-                    "comment": "Position 5 (offset applied: x-0.20, y-0.15)"
+                    "comment": "Position 6"
                 },
                 {
-                    "x": 111.53,
-                    "y": 102.3864,
-                    "z": 0.5,
+                    "x": 111.73,
+                    "y": 102.5364,
+                    "z": 0.3,
                     "rotation": 60,
-                    "comment": "Position 6 (offset applied: x-0.20, y-0.15)"
+                    "comment": "Position 7"
                 },
                 {
-                    "x": 97.28,
-                    "y": 115.08,
-                    "z": 0.5,
+                    "x": 97.48,
+                    "y": 115.23,
+                    "z": 0.3,
                     "rotation": 180,
-                    "comment": "Position 7 (offset applied: x-0.20, y-0.15)"
+                    "comment": "Position 8"
                 },
                 {
-                    "x": 115.4,
-                    "y": 115.08,
-                    "z": 0.5,
+                    "x": 115.6,
+                    "y": 115.23,
+                    "z": 0.3,
                     "rotation": 180,
-                    "comment": "Position 8 (offset applied: x-0.20, y-0.15)"
+                    "comment": "Position 9"
                 },
                 {
-                    "x": 106.34,
-                    "y": 99.39,
-                    "z": 0.5,
+                    "x": 106.54,
+                    "y": 99.54,
+                    "z": 0.3,
                     "rotation": 180,
-                    "comment": "Position 9 (offset applied: x-0.20, y-0.15)"
+                    "comment": "Position 10"
                 },
                 {
-                    "x": 102.47,
-                    "y": 112.0836,
-                    "z": 0.5,
+                    "x": 102.67,
+                    "y": 112.2336,
+                    "z": 0.3,
                     "rotation": 300,
-                    "comment": "Position 10 (offset applied: x-0.20, y-0.15)"
+                    "comment": "Position 11"
                 },
                 {
-                    "x": 120.59,
-                    "y": 112.0836,
-                    "z": 0.5,
+                    "x": 120.79,
+                    "y": 112.2336,
+                    "z": 0.3,
                     "rotation": 300,
-                    "comment": "Position 11 (offset applied: x-0.20, y-0.15)"
+                    "comment": "Position 12"
                 },
                 {
-                    "x": 111.53,
-                    "y": 96.3936,
-                    "z": 0.5,
+                    "x": 111.73,
+                    "y": 96.5436,
+                    "z": 0.3,
                     "rotation": 300,
-                    "comment": "Position 12 (offset applied: x-0.20, y-0.15)"
+                    "comment": "Position 13"
                 }
             ]
         }

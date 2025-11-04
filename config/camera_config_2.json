@@ -25,7 +25,7 @@
   "transform": {
     "image_flip": null,
     "image_rotate": 0,
-    "pixel_to_mm": 0.0165,
+    "pixel_to_mm": 0.0177,
     "pixel_x_to_machine_x": -1.0,
     "pixel_x_to_machine_y": 0.0,
     "pixel_y_to_machine_x": 0.0,

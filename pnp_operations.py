@@ -118,27 +118,29 @@ class PnPWorkflow:
     """
     
     def __init__(self, printer: Printer, feeder: Feeder, config_manager: ConfigManager,
-                 camera_configs: Dict[int, CameraConfig]):
+                 camera_configs: Dict[int, CameraConfig], placement_offset: Optional[Dict[str, float]] = None):
         """
         Initialize PnP workflow.
-        
+
         Args:
             printer: Printer instance
             feeder: Feeder instance
             config_manager: ConfigManager instance
             camera_configs: Dictionary mapping camera numbers to CameraConfig instances
+            placement_offset: Optional offset dict with 'x' and 'y' keys (in mm) to apply to all placements
         """
         self.printer = printer
         self.feeder = feeder
         self.config = config_manager
         self.camera_configs = camera_configs
-        
+        self.placement_offset = placement_offset if placement_offset else {'x': 0.0, 'y': 0.0}
+
         # Initialize vision tools for each camera
-        self.vision_upper = VisionTools(2, target='tool', 
+        self.vision_upper = VisionTools(2, target='tool',
                                        camera_config=camera_configs[2])
         self.vision_lower = VisionTools(0, target='tool',
                                        camera_config=camera_configs[0])
-        
+
         # Centering parameters
         self.TOLERANCE = 0
         self.MAX_ITERATIONS = 20
@@ -776,9 +778,9 @@ class PnPWorkflow:
         print("  4. Placing component...")
         target_pos = placement
 
-        # Method 1: target + component_offset
-        final_x = target_pos['x'] + component_offset['X']
-        final_y = target_pos['y'] + component_offset['Y']
+        # Method 1: target + component_offset + placement_offset
+        final_x = target_pos['x'] + component_offset['X'] + self.placement_offset['x']
+        final_y = target_pos['y'] + component_offset['Y'] + self.placement_offset['y']
 
         # Method 2: current_pos + (target - camera_loc)
         # This should give the same result as Method 1
@@ -790,7 +792,9 @@ class PnPWorkflow:
         diff_y = abs(final_y - alt_final_y)
 
         print(f"  DEBUG: Target position: X{target_pos['x']:.3f}, Y{target_pos['y']:.3f}")
-        # print(f"  DEBUG: Method 1 (target + offset): X{final_x:.3f}, Y{final_y:.3f}")
+        if self.placement_offset['x'] != 0 or self.placement_offset['y'] != 0:
+            print(f"  DEBUG: Placement offset: X{self.placement_offset['x']:+.3f}, Y{self.placement_offset['y']:+.3f}")
+        print(f"  DEBUG: Final position (target + component_offset + placement_offset): X{final_x:.3f}, Y{final_y:.3f}")
         # print(f"  DEBUG: Method 2 (current + delta): X{alt_final_x:.3f}, Y{alt_final_y:.3f}")
 
         # if diff_x > 0.001 or diff_y > 0.001:
