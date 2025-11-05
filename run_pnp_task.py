@@ -6,11 +6,11 @@ This is the main entry point for running pick-and-place operations.
 It loads configurations, initializes hardware, and executes the PnP workflow.
 
 Usage:
-    python run_pnp_task.py [placement_config.json] [--resume] [--offsets X,Y]
+    python run_pnp_task.py [placement_config.json] [--resume] [--offsets X Y]
 
 Options:
     --resume          Resume from last checkpoint after error/interruption
-    --offsets X,Y     Apply X,Y offset (in mm) to all placements (e.g., --offsets -0.2,-0.15)
+    --offsets X Y     Apply X,Y offset (in mm) to all placements (e.g., --offsets -0.2 -0.15)
 """
 
 import sys
@@ -32,8 +32,8 @@ def main():
                         help='Path to placement configuration file (default: placement_config.json)')
     parser.add_argument('--resume', action='store_true',
                         help='Resume from last checkpoint after error/interruption')
-    parser.add_argument('--offsets', type=str, default=None,
-                        help='Apply X,Y offset in mm to all placements (e.g., --offsets -0.2,-0.15)')
+    parser.add_argument('--offsets', nargs=2, type=float, metavar=('X', 'Y'), default=None,
+                        help='Apply X,Y offset in mm to all placements (e.g., --offsets -0.2 -0.15)')
 
     args = parser.parse_args()
 
@@ -43,19 +43,9 @@ def main():
     # Parse offsets if provided
     placement_offset = None
     if args.offsets:
-        try:
-            offset_parts = args.offsets.split(',')
-            if len(offset_parts) != 2:
-                print("Error: --offsets must be in format X,Y (e.g., --offsets -0.2,-0.15)")
-                return 1
-            x_offset = float(offset_parts[0])
-            y_offset = float(offset_parts[1])
-            placement_offset = {'x': x_offset, 'y': y_offset}
-            print(f"Placement offset: X{x_offset:+.3f}, Y{y_offset:+.3f} mm")
-        except ValueError as e:
-            print(f"Error: Invalid offset format: {args.offsets}")
-            print("Expected format: --offsets X,Y (e.g., --offsets -0.2,-0.15)")
-            return 1
+        x_offset, y_offset = args.offsets
+        placement_offset = {'x': x_offset, 'y': y_offset}
+        print(f"Placement offset: X{x_offset:+.3f}, Y{y_offset:+.3f} mm")
 
     print("="*60)
     print("DuetPnP Pick-and-Place System")
