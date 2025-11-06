@@ -1,0 +1,133 @@
+{
+    "components": [
+        {
+            "type": "0402_resistor",
+            "upper_template": "./templates/0402_res_above.png",
+            "lower_template": "./templates/0402_res_below.png",
+            "feed_number": 2,
+            "reel_location": {
+                "x": -58.2,
+                "y": 236.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 70.0,
+                    "y": 120.0,
+                    "z": 0.1,
+                    "rotation": 90,
+                    "comment": "Position 1"
+                },
+                {
+                    "x": 80.0,
+                    "y": 110.0,
+                    "z": 0.1,
+                    "rotation": 0,
+                    "comment": "Position 2"
+                },
+                {
+                    "x": 70.0,
+                    "y": 100.0,
+                    "z": 0.1,
+                    "rotation": 0,
+                    "comment": "Position 3"
+                },
+                {
+                    "x": 80.0,
+                    "y": 80.0,
+                    "z": 0.1,
+                    "rotation": 90,
+                    "comment": "Position 4"
+                }
+            ]
+        },
+        {
+            "type": "0402_diode",
+            "upper_template": "./templates/0402_diode_above.png",
+            "lower_template": "./templates/0402_diode_below.png",
+            "feed_number": 2,
+            "reel_location": {
+                "x": -58.2,
+                "y": 236.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 102.67,
+                    "y": 118.2264,
+                    "z": 0.1,
+                    "rotation": 60,
+                    "comment": "Position 5"
+                },
+                {
+                    "x": 120.79,
+                    "y": 118.2264,
+                    "z": 0.1,
+                    "rotation": 60,
+                    "comment": "Position 6"
+                },
+                {
+                    "x": 111.73,
+                    "y": 102.5364,
+                    "z": 0.1,
+                    "rotation": 60,
+                    "comment": "Position 7"
+                },
+                {
+                    "x": 97.48,
+                    "y": 115.23,
+                    "z": 0.1,
+                    "rotation": 180,
+                    "comment": "Position 8"
+                },
+                {
+                    "x": 115.6,
+                    "y": 115.23,
+                    "z": 0.1,
+                    "rotation": 180,
+                    "comment": "Position 9"
+                },
+                {
+                    "x": 106.54,
+                    "y": 99.54,
+                    "z": 0.1,
+                    "rotation": 180,
+                    "comment": "Position 10"
+                },
+                {
+                    "x": 102.67,
+                    "y": 112.2336,
+                    "z": 0.1,
+                    "rotation": 300,
+                    "comment": "Position 11"
+                },
+                {
+                    "x": 120.79,
+                    "y": 112.2336,
+                    "z": 0.1,
+                    "rotation": 300,
+                    "comment": "Position 12"
+                },
+                {
+                    "x": 111.73,
+                    "y": 96.5436,
+                    "z": 0.1,
+                    "rotation": 300,
+                    "comment": "Position 13"
+                }
+            ]
+        }
+    ]
+}
