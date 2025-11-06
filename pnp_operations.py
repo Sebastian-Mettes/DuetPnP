@@ -568,7 +568,7 @@ class PnPWorkflow:
 
 
         self.printer.linear_move(z=150,f=6000) #Lift to safe height
-        self.printer.linear_move(x=pickup_pos['X']-0.6, y=pickup_pos['Y']-0.5,f=6000) #Note - manual offsets
+        self.printer.linear_move(x=pickup_pos['X']-0.4, y=pickup_pos['Y']-0.25,f=6000) #Note - manual offsets
         self.printer.wait_for_idle()
         self.printer.control_solenoid(True)
         self.printer.control_vacuum(True)
