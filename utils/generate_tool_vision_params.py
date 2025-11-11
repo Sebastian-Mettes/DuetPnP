@@ -42,7 +42,7 @@ def calibrate_tool_vision(camera_number: int, tool_number: int):
         camera_number: Camera ID (0, 2, etc.)
         tool_number: Tool number (0, 1, 2, etc.)
     """
-    output_file = f"../config/vision_params_camera{camera_number}_tool{tool_number}.json"
+    output_file = f"./config/vision_params_camera{camera_number}_tool{tool_number}.json"
 
     print("="*60)
     print(f"Tool Vision Parameters Calibration")
@@ -220,7 +220,7 @@ def calibrate_target_vision(camera_number: int):
     Args:
         camera_number: Camera ID (0, 2, etc.)
     """
-    output_file = f"../config/vision_params_camera{camera_number}_target.json"
+    output_file = f"./config/vision_params_camera{camera_number}_target.json"
 
     print("="*60)
     print(f"Target Vision Parameters Calibration")
@@ -404,6 +404,7 @@ def main():
         # Check if target or tool number
         if target_arg.lower() == 'target':
             calibrate_target_vision(camera_number)
+            print('calibrating for target')
         else:
             tool_number = int(target_arg)
             calibrate_tool_vision(camera_number, tool_number)

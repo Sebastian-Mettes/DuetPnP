@@ -17,61 +17,13 @@
                 "z": 20.3
             },
             "placements": [
-                {
-                    "x": 102.67,
-                    "y": 118.2264,
-                    "z": 0.1,
-                    "rotation": 60,
-                    "comment": "Position 5"
-                },
-                {
-                    "x": 120.79,
-                    "y": 118.2264,
-                    "z": 0.1,
-                    "rotation": 60,
-                    "comment": "Position 6"
-                },
-                {
-                    "x": 111.73,
-                    "y": 102.5364,
-                    "z": 0.1,
-                    "rotation": 60,
-                    "comment": "Position 7"
-                },
-                {
-                    "x": 97.48,
-                    "y": 115.23,
-                    "z": 0.1,
-                    "rotation": 180,
-                    "comment": "Position 8"
-                },
-                {
-                    "x": 115.6,
-                    "y": 115.23,
-                    "z": 0.1,
-                    "rotation": 180,
-                    "comment": "Position 9"
-                },
+                
                 {
                     "x": 106.54,
                     "y": 99.54,
                     "z": 0.1,
                     "rotation": 180,
                     "comment": "Position 10"
-                },
-                {
-                    "x": 102.67,
-                    "y": 112.2336,
-                    "z": 0.1,
-                    "rotation": 300,
-                    "comment": "Position 11"
-                },
-                {
-                    "x": 120.79,
-                    "y": 112.2336,
-                    "z": 0.1,
-                    "rotation": 300,
-                    "comment": "Position 12"
                 },
                 {
                     "x": 111.73,
