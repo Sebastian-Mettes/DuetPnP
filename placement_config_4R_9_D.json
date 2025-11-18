@@ -18,32 +18,18 @@
             },
             "placements": [
                 {
-                    "x": 60.0,
-                    "y": 60.0,
-                    "z": 0.1,
-                    "rotation": 90,
-                    "comment": "R1"
+                    "x": 91.73,
+                    "y": 93.0,
+                    "z": 5.5,
+                    "rotation": 60,
+                    "comment": "R1 - 60deg set"
                 },
                 {
-                    "x": 60.0,
-                    "y": 80.0,
-                    "z": 0.1,
-                    "rotation": 0,
-                    "comment": "R2"
-                },
-                {
-                    "x": 55.0,
-                    "y": 100.0,
-                    "z": 0.1,
-                    "rotation": 0,
-                    "comment": "R3"
-                },
-                {
-                    "x": 80.0,
-                    "y": 60.0,
-                    "z": 0.1,
-                    "rotation": 90,
-                    "comment": "R4"
+                    "x": 96.73,
+                    "y": 73.0,
+                    "z": 5.5,
+                    "rotation": 60,
+                    "comment": "R2 - 60deg set"
                 }
             ]
         },
@@ -65,67 +51,150 @@
             },
             "placements": [
                 {
-                    "x": 111.73,
-                    "y": 112.9964,
-                    "z": 0.1,
+                    "x": 102.67,
+                    "y": 113.0,
+                    "z": 5.5,
                     "rotation": 60,
-                    "comment": "D1"
+                    "comment": "D1 - 60deg set"
                 },
                 {
-                    "x": 93.59,
-                    "y": 112.9964,
-                    "z": 0.1,
+                    "x": 120.79,
+                    "y": 113.0,
+                    "z": 5.5,
                     "rotation": 60,
-                    "comment": "D2"
-                },
+                    "comment": "D2 - 60deg set"
+                }
+            ]
+        },
+        {
+            "type": "0402_resistor",
+            "upper_template": "./templates/0402_res_above.png",
+            "lower_template": "./templates/0402_res_below.png",
+            "feed_number": 2,
+            "reel_location": {
+                "x": -48.2,
+                "y": 236.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
                 {
-                    "x": 129.85,
-                    "y": 112.9964,
-                    "z": 0.1,
-                    "rotation": 60,
-                    "comment": "D3"
-                },
-                {
-                    "x": 106.54,
-                    "y": 110.0,
-                    "z": 0.1,
+                    "x": 86.54,
+                    "y": 90.0,
+                    "z": 5.5,
                     "rotation": 180,
-                    "comment": "D4"
+                    "comment": "R3 - 180deg set"
                 },
                 {
-                    "x": 88.4,
-                    "y": 110.0,
-                    "z": 0.1,
+                    "x": 91.54,
+                    "y": 70.0,
+                    "z": 5.5,
                     "rotation": 180,
-                    "comment": "D5"
-                },
+                    "comment": "R4 - 180deg set"
+                }
+            ]
+        },
+        {
+            "type": "0402_diode",
+            "upper_template": "./templates/0402_diode_above.png",
+            "lower_template": "./templates/0402_diode_below.png",
+            "feed_number": 2,
+            "reel_location": {
+                "x": -58.2,
+                "y": 240.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
                 {
-                    "x": 124.66,
+                    "x": 97.48,
                     "y": 110.0,
-                    "z": 0.1,
+                    "z": 5.5,
                     "rotation": 180,
-                    "comment": "D6"
+                    "comment": "D3 - 180deg set"
                 },
                 {
-                    "x": 111.73,
-                    "y": 107.0036,
-                    "z": 0.1,
+                    "x": 115.6,
+                    "y": 110.0,
+                    "z": 5.5,
+                    "rotation": 180,
+                    "comment": "D4 - 180deg set"
+                }
+            ]
+        },
+        {
+            "type": "0402_resistor",
+            "upper_template": "./templates/0402_res_above.png",
+            "lower_template": "./templates/0402_res_below.png",
+            "feed_number": 2,
+            "reel_location": {
+                "x": -48.2,
+                "y": 236.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 91.73,
+                    "y": 87.0,
+                    "z": 5.5,
                     "rotation": 120,
-                    "comment": "D7"
+                    "comment": "R5 - 300deg set"
                 },
                 {
-                    "x": 93.59,
-                    "y": 107.0036,
-                    "z": 0.1,
+                    "x": 96.73,
+                    "y": 67.0,
+                    "z": 5.5,
                     "rotation": 120,
-                    "comment": "D8"
+                    "comment": "R6 - 300deg set"
+                }
+            ]
+        },
+        {
+            "type": "0402_diode",
+            "upper_template": "./templates/0402_diode_above.png",
+            "lower_template": "./templates/0402_diode_below.png",
+            "feed_number": 2,
+            "reel_location": {
+                "x": -58.2,
+                "y": 240.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 102.67,
+                    "y": 107.0,
+                    "z": 5.5,
+                    "rotation": 120,
+                    "comment": "D5 - 300deg set"
                 },
                 {
-                    "x": 129.85,
-                    "y": 107.0036,
-                    "z": 0.1,
+                    "x": 120.79,
+                    "y": 107.0,
+                    "z": 5.5,
                     "rotation": 120,
-                    "comment": "D9"
+                    "comment": "D6 - 300deg set"
                 }
             ]
         }
