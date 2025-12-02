@@ -10,24 +10,24 @@
     "Y": -78.22,
     "Z": -13.75,
     "U": 0,
-    "V": -7.67,
+    "V": -6.63,
     "A": 0
   },
   "new_offsets": {
-    "V": -6.15,
-    "Y": -78.06,
+    "V": -6.23,
+    "Y": -77.98,
     "Z": -13.75
   },
-  "position_difference_X": -1.52,
-  "position_difference_Y": -0.16,
+  "position_difference_X": -0.4,
+  "position_difference_Y": -0.24,
   "expected_position": [
     21.6,
     -56.7,
     168
   ],
   "actual_position": [
-    20.08,
-    -56.86,
+    21.2,
+    -56.94,
     168
   ],
   "calibration_method": "camera centering with axis mapping"

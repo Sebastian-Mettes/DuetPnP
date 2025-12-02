@@ -7,27 +7,27 @@
   },
   "current_offsets": {
     "X": 0,
-    "Y": -110.05,
+    "Y": -110.4,
     "Z": 26,
     "U": 0,
-    "V": -2.6,
+    "V": -1.27,
     "A": 0
   },
   "new_offsets": {
-    "V": -1.27,
+    "V": -1.9,
     "Y": -110.4,
     "Z": 26
   },
-  "position_difference_X": -1.33,
-  "position_difference_Y": 0.35,
+  "position_difference_X": 0.63,
+  "position_difference_Y": 0,
   "expected_position": [
     110,
     110,
     158
   ],
   "actual_position": [
-    108.67,
-    110.35,
+    110.63,
+    110,
     158
   ],
   "calibration_method": "PnP target placement with axis mapping"
