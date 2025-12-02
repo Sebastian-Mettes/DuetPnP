@@ -1,0 +1,244 @@
+{
+    "components": [
+        {
+            "type": "0402_capacitor",
+            "upper_template": "./templates/0402_cap_above.png",
+            "lower_template": "./templates/0402_cap_below.png",
+            "feed_number": 2,
+            "reel_location": {
+                "x": -48.2,
+                "y": 236.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 112.36,
+                    "y": 91.37,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "Set1 T1=30"
+                },
+                {
+                    "x": 107.64,
+                    "y": 88.63,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "Set1 T1=210"
+                },
+                {
+                    "x": 112.36,
+                    "y": 111.37,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "Set2 T1=30"
+                },
+                {
+                    "x": 107.64,
+                    "y": 108.63,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "Set2 T1=210"
+                }
+            ]
+        },
+        {
+            "type": "0402_diode",
+            "upper_template": "./templates/0402_diode_above.png",
+            "lower_template": "./templates/0402_diode_below.png",
+            "feed_number": 1,
+            "reel_location": {
+                "x": -58.2,
+                "y": 240.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 112.36,
+                    "y": 131.37,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "Set3 T1=30"
+                },
+                {
+                    "x": 107.64,
+                    "y": 128.63,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "Set3 T1=210"
+                }
+            ]
+        },
+        {
+            "type": "0402_capacitor",
+            "upper_template": "./templates/0402_cap_above.png",
+            "lower_template": "./templates/0402_cap_below.png",
+            "feed_number": 2,
+            "reel_location": {
+                "x": -48.2,
+                "y": 236.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 110.0,
+                    "y": 92.73,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "Set1 T1=90"
+                },
+                {
+                    "x": 110.0,
+                    "y": 87.27,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "Set1 T1=270"
+                },
+                {
+                    "x": 110.0,
+                    "y": 112.73,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "Set2 T1=90"
+                },
+                {
+                    "x": 110.0,
+                    "y": 107.27,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "Set2 T1=270"
+                }
+            ]
+        },
+        {
+            "type": "0402_diode",
+            "upper_template": "./templates/0402_diode_above.png",
+            "lower_template": "./templates/0402_diode_below.png",
+            "feed_number": 1,
+            "reel_location": {
+                "x": -58.2,
+                "y": 240.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 110.0,
+                    "y": 132.73,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "Set3 T1=90"
+                },
+                {
+                    "x": 110.0,
+                    "y": 127.27,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "Set3 T1=270"
+                }
+            ]
+        },
+        {
+            "type": "0402_capacitor",
+            "upper_template": "./templates/0402_cap_above.png",
+            "lower_template": "./templates/0402_cap_below.png",
+            "feed_number": 2,
+            "reel_location": {
+                "x": -48.2,
+                "y": 236.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 107.64,
+                    "y": 91.37,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "Set1 T1=150"
+                },
+                {
+                    "x": 112.36,
+                    "y": 88.63,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "Set1 T1=330"
+                },
+                {
+                    "x": 107.64,
+                    "y": 111.37,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "Set2 T1=150"
+                },
+                {
+                    "x": 112.36,
+                    "y": 108.63,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "Set2 T1=330"
+                }
+            ]
+        },
+        {
+            "type": "0402_diode",
+            "upper_template": "./templates/0402_diode_above.png",
+            "lower_template": "./templates/0402_diode_below.png",
+            "feed_number": 1,
+            "reel_location": {
+                "x": -58.2,
+                "y": 240.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 107.64,
+                    "y": 131.37,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "Set3 T1=150"
+                },
+                {
+                    "x": 112.36,
+                    "y": 128.63,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "Set3 T1=330"
+                }
+            ]
+        }
+    ]
+}
