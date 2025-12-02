@@ -3,7 +3,7 @@
         {
             "type": "0402_capacitor",
             "upper_template": "./templates/0402_cap_above.png",
-            "lower_template": "./templates/0402_cap_below.png",
+            "lower_template": "./templates/0402_cap_above.png",
             "feed_number": 2,
             "reel_location": {
                 "x": -48.2,
@@ -83,7 +83,7 @@
         {
             "type": "0402_capacitor",
             "upper_template": "./templates/0402_cap_above.png",
-            "lower_template": "./templates/0402_cap_below.png",
+            "lower_template": "./templates/0402_cap_above.png",
             "feed_number": 2,
             "reel_location": {
                 "x": -48.2,
@@ -163,7 +163,7 @@
         {
             "type": "0402_capacitor",
             "upper_template": "./templates/0402_cap_above.png",
-            "lower_template": "./templates/0402_cap_below.png",
+            "lower_template": "./templates/0402_cap_above.png",
             "feed_number": 2,
             "reel_location": {
                 "x": -48.2,
