@@ -1,0 +1,370 @@
+{
+    "components": [
+        {
+            "type": "0402_capacitor",
+            "upper_template": "./templates/0402_cap_above.png",
+            "lower_template": "./templates/0402_cap_above.png",
+            "feed_number": 2,
+            "reel_location": {
+                "x": -48.2,
+                "y": 236.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 92.36,
+                    "y": 111.36,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "cap1 center T1=30"
+                },
+                {
+                    "x": 87.64,
+                    "y": 108.63,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "cap1 center T1=210"
+                },
+                {
+                    "x": 92.36,
+                    "y": 93.24,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "cap1 lower T1=30"
+                },
+                {
+                    "x": 87.64,
+                    "y": 126.75,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "cap1 upper T1=210"
+                },
+                {
+                    "x": 112.36,
+                    "y": 111.36,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "cap2 center T1=30"
+                },
+                {
+                    "x": 107.64,
+                    "y": 108.63,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "cap2 center T1=210"
+                },
+                {
+                    "x": 112.36,
+                    "y": 93.24,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "cap2 lower T1=30"
+                },
+                {
+                    "x": 107.64,
+                    "y": 126.75,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "cap2 upper T1=210"
+                }
+            ]
+        },
+        {
+            "type": "0402_diode",
+            "upper_template": "./templates/0402_diode_above.png",
+            "lower_template": "./templates/0402_diode_below.png",
+            "feed_number": 1,
+            "reel_location": {
+                "x": -58.2,
+                "y": 240.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 132.36,
+                    "y": 111.36,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "diode center T1=30"
+                },
+                {
+                    "x": 127.64,
+                    "y": 108.63,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "diode center T1=210"
+                },
+                {
+                    "x": 132.36,
+                    "y": 93.24,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "diode lower T1=30"
+                },
+                {
+                    "x": 127.64,
+                    "y": 126.75,
+                    "z": 0.5,
+                    "rotation": 30,
+                    "comment": "diode upper T1=210"
+                }
+            ]
+        },
+        {
+            "type": "0402_capacitor",
+            "upper_template": "./templates/0402_cap_above.png",
+            "lower_template": "./templates/0402_cap_above.png",
+            "feed_number": 2,
+            "reel_location": {
+                "x": -48.2,
+                "y": 236.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 90.0,
+                    "y": 112.73,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "cap1 center T1=90"
+                },
+                {
+                    "x": 90.0,
+                    "y": 107.27,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "cap1 center T1=270"
+                },
+                {
+                    "x": 90.0,
+                    "y": 94.61,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "cap1 lower T1=90"
+                },
+                {
+                    "x": 90.0,
+                    "y": 125.39,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "cap1 upper T1=270"
+                },
+                {
+                    "x": 110.0,
+                    "y": 112.73,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "cap2 center T1=90"
+                },
+                {
+                    "x": 110.0,
+                    "y": 107.27,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "cap2 center T1=270"
+                },
+                {
+                    "x": 110.0,
+                    "y": 94.61,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "cap2 lower T1=90"
+                },
+                {
+                    "x": 110.0,
+                    "y": 125.39,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "cap2 upper T1=270"
+                }
+            ]
+        },
+        {
+            "type": "0402_diode",
+            "upper_template": "./templates/0402_diode_above.png",
+            "lower_template": "./templates/0402_diode_below.png",
+            "feed_number": 1,
+            "reel_location": {
+                "x": -58.2,
+                "y": 240.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 130.0,
+                    "y": 112.73,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "diode center T1=90"
+                },
+                {
+                    "x": 130.0,
+                    "y": 107.27,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "diode center T1=270"
+                },
+                {
+                    "x": 130.0,
+                    "y": 94.61,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "diode lower T1=90"
+                },
+                {
+                    "x": 130.0,
+                    "y": 125.39,
+                    "z": 0.5,
+                    "rotation": 90,
+                    "comment": "diode upper T1=270"
+                }
+            ]
+        },
+        {
+            "type": "0402_capacitor",
+            "upper_template": "./templates/0402_cap_above.png",
+            "lower_template": "./templates/0402_cap_above.png",
+            "feed_number": 2,
+            "reel_location": {
+                "x": -48.2,
+                "y": 236.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 87.64,
+                    "y": 111.36,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "cap1 center T1=150"
+                },
+                {
+                    "x": 92.36,
+                    "y": 108.63,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "cap1 center T1=330"
+                },
+                {
+                    "x": 87.64,
+                    "y": 93.24,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "cap1 lower T1=150"
+                },
+                {
+                    "x": 92.36,
+                    "y": 126.75,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "cap1 upper T1=330"
+                },
+                {
+                    "x": 107.64,
+                    "y": 111.36,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "cap2 center T1=150"
+                },
+                {
+                    "x": 112.36,
+                    "y": 108.63,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "cap2 center T1=330"
+                },
+                {
+                    "x": 107.64,
+                    "y": 93.24,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "cap2 lower T1=150"
+                },
+                {
+                    "x": 112.36,
+                    "y": 126.75,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "cap2 upper T1=330"
+                }
+            ]
+        },
+        {
+            "type": "0402_diode",
+            "upper_template": "./templates/0402_diode_above.png",
+            "lower_template": "./templates/0402_diode_below.png",
+            "feed_number": 1,
+            "reel_location": {
+                "x": -58.2,
+                "y": 240.1,
+                "z": 20.0
+            },
+            "reel_focus": 177,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 127.64,
+                    "y": 111.36,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "diode center T1=150"
+                },
+                {
+                    "x": 132.36,
+                    "y": 108.63,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "diode center T1=330"
+                },
+                {
+                    "x": 127.64,
+                    "y": 93.24,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "diode lower T1=150"
+                },
+                {
+                    "x": 132.36,
+                    "y": 126.75,
+                    "z": 0.5,
+                    "rotation": 150,
+                    "comment": "diode upper T1=330"
+                }
+            ]
+        }
+    ]
+}
