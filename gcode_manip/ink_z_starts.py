@@ -7,13 +7,15 @@ Pattern detected:
 2. Optional travel moves
 3. Z decreases (z-hop down) to target height
 4. Optional stationary extrusion (E without XY)
-5. First XY+E move (extrude while moving)
+5. XY+E moves (extrude while moving)
 
 Modification:
-- Step 3: Z goes to (target + 0.2) instead of target
-- Step 5: Add original target Z to the move command
+- Step 3: Z goes to (target + z_offset) instead of target
+- Step 5+: Z linearly interpolates from (target + z_offset) to target
+          over the specified transition distance (default 1mm of XY motion)
 """
 
+import math
 import sys
 from dataclasses import dataclass
 from typing import Optional
@@ -134,7 +136,8 @@ def parse_gcode_line(line: str) -> GCodeLine:
     return result
 
 
-def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2):
+def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2,
+                   transition_distance: float = 1.0, verbose: bool = False):
     """
     Process G-code file to modify Z-hop behavior.
 
@@ -142,6 +145,8 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2):
         input_path: Path to input G-code file
         output_path: Path to output G-code file
         z_offset: Amount to raise Z during initial descent (default 0.2mm)
+        transition_distance: Distance over which to linearly transition Z (default 1.0mm)
+        verbose: Print debug information
     """
     with open(input_path, 'r') as f:
         lines = f.readlines()
@@ -151,19 +156,51 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2):
 
     current_z = 0.0
     previous_z = 0.0
+    current_x = 0.0
+    current_y = 0.0
+    current_tool = None  # Track selected tool
 
     i = 0
     while i < len(parsed_lines):
         line = parsed_lines[i]
 
-        # Track Z position changes
+        # Track tool changes (T0, T1, T2, etc.)
+        if line.command is not None and line.command.startswith('T') and line.command[1:].isdigit():
+            current_tool = int(line.command[1:])
+            if verbose:
+                print(f"Line {i}: Tool changed to T{current_tool}")
+
+        # Track position changes
         if line.has_z():
             previous_z = current_z
             current_z = line.z
+        if line.x is not None:
+            current_x = line.x
+        if line.y is not None:
+            current_y = line.y
 
-        # Detect Z decrease (z-hop down)
-        if line.has_z() and line.z < previous_z:
+        # Detect Z decrease (z-hop down) - only for T1
+        # Skip very large Z drops (>10mm) as they're likely initial positioning, not hops
+        if line.has_z() and line.z < previous_z and current_tool == 1 and (previous_z - line.z) < 10.0:
             target_z = line.z
+            hop_height = previous_z - target_z  # How much the original hop was
+            if verbose:
+                print(f"Line {i}: Z-hop down detected (Z{previous_z} -> Z{target_z}), hop={hop_height:.3f}mm, tool=T{current_tool}")
+
+            # If hop is smaller than z_offset, we need to increase it
+            # Find and modify the Z increase line in output_lines
+            if hop_height < z_offset:
+                # Need to increase the hop - find and modify ALL lines at the hop height
+                extra_height = z_offset - hop_height
+                new_hop_z = previous_z + extra_height
+                for idx in range(len(output_lines) - 1, -1, -1):
+                    check_line = parse_gcode_line(output_lines[idx])
+                    if check_line.has_z() and check_line.z == previous_z:
+                        # Found a line at hop height, increase it
+                        output_lines[idx] = check_line.rebuild(new_z=new_hop_z)
+                    elif check_line.has_z() and check_line.z < previous_z:
+                        # Hit a Z below hop height - stop searching
+                        break
 
             # Look ahead for the pattern:
             # - Optional stationary extrusion lines
@@ -201,23 +238,93 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2):
             if first_extrude_move_idx is not None:
                 # Pattern found! Modify the lines
 
-                # Modify Z decrease line: raise by offset
-                modified_z = target_z + z_offset
-                output_lines.append(line.rebuild(new_z=modified_z))
+                # If hop is larger than z_offset, we need to:
+                # 1. Keep original hop-down height (for now, output unchanged)
+                # 2. Add an extra Z move to drop to target + z_offset
+                # If hop is smaller, we already increased it above
 
-                # Copy intermediate lines unchanged
-                for k in range(i + 1, first_extrude_move_idx):
-                    output_lines.append(parsed_lines[k].original)
+                if hop_height > z_offset:
+                    # Large hop: replace hop-down with drop to intermediate height
+                    # The original large hop-up is preserved for travel clearance
+                    # Replace hop-down with drop to target + z_offset (not all the way to target)
+                    drop_z = target_z + z_offset
+                    # Preserve feedrate from original line if present
+                    if line.f is not None:
+                        output_lines.append(f"G1 F{format_num(line.f)} Z{format_num(drop_z)}")
+                    else:
+                        output_lines.append(f"G1 Z{format_num(drop_z)}")
 
-                # Modify extrude+move line: add original target Z
-                extrude_line = parsed_lines[first_extrude_move_idx]
-                output_lines.append(extrude_line.rebuild(add_z=target_z))
+                    # Copy intermediate lines unchanged
+                    for k in range(i + 1, first_extrude_move_idx):
+                        output_lines.append(parsed_lines[k].original)
+                else:
+                    # Small hop (already increased): modify hop-down to target + z_offset
+                    modified_z = target_z + z_offset
+                    output_lines.append(line.rebuild(new_z=modified_z))
 
-                # Update current_z to target (since we're adding it to the move)
+                    # Copy intermediate lines unchanged
+                    for k in range(i + 1, first_extrude_move_idx):
+                        output_lines.append(parsed_lines[k].original)
+
+                # Process extrude+move lines with Z interpolation based on XY distance
+                cumulative_distance = 0.0
+                k = first_extrude_move_idx
+                # Track position for distance calculation
+                interp_x = current_x
+                interp_y = current_y
+
+                while k < len(parsed_lines):
+                    extrude_line = parsed_lines[k]
+
+                    if extrude_line.is_extrude_move():
+                        # Calculate XY distance traveled
+                        new_x = extrude_line.x if extrude_line.x is not None else interp_x
+                        new_y = extrude_line.y if extrude_line.y is not None else interp_y
+                        dx = new_x - interp_x
+                        dy = new_y - interp_y
+                        distance = math.sqrt(dx * dx + dy * dy)
+                        cumulative_distance += distance
+                        interp_x, interp_y = new_x, new_y
+
+                        # Calculate Z based on how far through transition we are
+                        # Z transitions from (target+offset) to target over transition_distance
+                        if cumulative_distance >= transition_distance:
+                            # Transition complete - use target Z
+                            interpolated_z = target_z
+                        else:
+                            # Interpolate Z based on progress
+                            progress = cumulative_distance / transition_distance
+                            interpolated_z = target_z + z_offset * (1.0 - progress)
+
+                        output_lines.append(extrude_line.rebuild(add_z=interpolated_z))
+                        k += 1
+
+                        # Stop adding Z after transition is complete
+                        if cumulative_distance >= transition_distance:
+                            break
+                    elif extrude_line.is_stationary_extrude():
+                        # Stationary extrusion during transition - keep unchanged
+                        output_lines.append(extrude_line.original)
+                        k += 1
+                    elif extrude_line.has_z():
+                        # Another Z move - stop interpolation
+                        break
+                    elif extrude_line.command is None:
+                        # Comment or empty line - keep and continue
+                        output_lines.append(extrude_line.original)
+                        k += 1
+                    else:
+                        # Other command - stop interpolation
+                        break
+
+                # Update tracked position
+                current_x, current_y = interp_x, interp_y
+
+                # Update current_z to target
                 current_z = target_z
 
                 # Skip to after the modified section
-                i = first_extrude_move_idx + 1
+                i = k
                 continue
 
         # No pattern match - output line unchanged
@@ -233,16 +340,22 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python ink_z_starts.py <input.gcode> [output.gcode] [z_offset]")
-        print("  input.gcode  - Input G-code file")
-        print("  output.gcode - Output file (default: input_modified.gcode)")
-        print("  z_offset     - Z offset in mm (default: 0.2)")
+        print("Usage: python ink_z_starts.py <input.gcode> [output.gcode] [z_offset] [transition_dist] [-v]")
+        print("  input.gcode     - Input G-code file")
+        print("  output.gcode    - Output file (default: input_modified.gcode)")
+        print("  z_offset        - Z offset in mm (default: 0.2)")
+        print("  transition_dist - XY distance to transition Z over (default: 1.0mm)")
+        print("  -v              - Verbose mode (show debug info)")
         sys.exit(1)
 
-    input_path = sys.argv[1]
+    # Check for verbose flag
+    verbose = '-v' in sys.argv
+    args = [a for a in sys.argv[1:] if a != '-v']
 
-    if len(sys.argv) >= 3:
-        output_path = sys.argv[2]
+    input_path = args[0]
+
+    if len(args) >= 2:
+        output_path = args[1]
     else:
         # Default output name
         if input_path.endswith('.gcode'):
@@ -251,10 +364,14 @@ def main():
             output_path = input_path + '_modified.gcode'
 
     z_offset = 0.2
-    if len(sys.argv) >= 4:
-        z_offset = float(sys.argv[3])
+    if len(args) >= 3:
+        z_offset = float(args[2])
 
-    process_gcode(input_path, output_path, z_offset)
+    transition_distance = 1.0
+    if len(args) >= 4:
+        transition_distance = float(args[3])
+
+    process_gcode(input_path, output_path, z_offset, transition_distance, verbose)
 
 
 if __name__ == "__main__":
