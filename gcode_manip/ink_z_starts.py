@@ -57,14 +57,18 @@ class GCodeLine:
         """Extrusion without XY movement."""
         return self.has_e() and not self.has_xy_move() and not self.has_z()
 
-    def rebuild(self, new_z: Optional[float] = None, add_z: Optional[float] = None) -> str:
-        """Rebuild the G-code line, optionally modifying Z."""
+    def rebuild(self, new_z: Optional[float] = None, add_z: Optional[float] = None,
+                new_f: Optional[float] = None) -> str:
+        """Rebuild the G-code line, optionally modifying Z and/or F."""
         if self.command is None:
             return self.original
 
         parts = [self.command]
 
-        if self.f is not None:
+        # Handle feedrate - use new_f if provided, otherwise original
+        if new_f is not None:
+            parts.append(f"F{format_num(new_f)}")
+        elif self.f is not None:
             parts.append(f"F{format_num(self.f)}")
         if self.x is not None:
             parts.append(f"X{format_num(self.x)}")
@@ -261,11 +265,17 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2,
                 # Track position for distance calculation
                 interp_x = current_x
                 interp_y = current_y
+                # Track feedrate for restoration after smoothing
+                original_feedrate = None
 
                 while k < len(parsed_lines):
                     extrude_line = parsed_lines[k]
 
                     if extrude_line.is_extrude_move():
+                        # Track original feedrate from first move with F
+                        if original_feedrate is None and extrude_line.f is not None:
+                            original_feedrate = extrude_line.f
+
                         # Calculate XY distance traveled
                         new_x = extrude_line.x if extrude_line.x is not None else interp_x
                         new_y = extrude_line.y if extrude_line.y is not None else interp_y
@@ -285,11 +295,16 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2,
                             progress = cumulative_distance / transition_distance
                             interpolated_z = target_z + z_offset * (1.0 - progress)
 
-                        output_lines.append(extrude_line.rebuild(add_z=interpolated_z))
+                        # Increase feedrate by 50% during smoothing
+                        boosted_f = extrude_line.f * 1.5 if extrude_line.f is not None else None
+                        output_lines.append(extrude_line.rebuild(add_z=interpolated_z, new_f=boosted_f))
                         k += 1
 
                         # Stop adding Z after transition is complete
                         if cumulative_distance >= transition_distance:
+                            # Restore original feedrate after smoothing
+                            if original_feedrate is not None:
+                                output_lines.append(f"G1 F{format_num(original_feedrate)}")
                             break
                     elif extrude_line.is_stationary_extrude():
                         # Stationary extrusion during transition - keep unchanged
