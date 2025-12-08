@@ -137,7 +137,8 @@ def parse_gcode_line(line: str) -> GCodeLine:
 
 
 def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2,
-                   transition_distance: float = 1.0, verbose: bool = False):
+                   transition_distance: float = 1.0, min_hop_height: float = 2.0,
+                   verbose: bool = False):
     """
     Process G-code file to modify Z-hop behavior.
 
@@ -146,6 +147,7 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2,
         output_path: Path to output G-code file
         z_offset: Amount to raise Z during initial descent (default 0.2mm)
         transition_distance: Distance over which to linearly transition Z (default 1.0mm)
+        min_hop_height: Minimum hop height for travel clearance (default 2.0mm)
         verbose: Print debug information
     """
     with open(input_path, 'r') as f:
@@ -187,12 +189,14 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2,
             if verbose:
                 print(f"Line {i}: Z-hop down detected (Z{previous_z} -> Z{target_z}), hop={hop_height:.3f}mm, tool=T{current_tool}")
 
-            # If hop is smaller than z_offset, we need to increase it
+            # If hop is smaller than min_hop_height, increase it for travel clearance
             # Find and modify the Z increase line in output_lines
-            if hop_height < z_offset:
+            # Use small tolerance for floating point comparison
+            if hop_height < min_hop_height - 0.001:
                 # Need to increase the hop - find and modify ALL lines at the hop height
-                extra_height = z_offset - hop_height
-                new_hop_z = previous_z + extra_height
+                new_hop_z = target_z + min_hop_height
+                if verbose:
+                    print(f"  Increasing hop from {hop_height:.3f}mm to {min_hop_height:.3f}mm (Z{previous_z} -> Z{new_hop_z})")
                 for idx in range(len(output_lines) - 1, -1, -1):
                     check_line = parse_gcode_line(output_lines[idx])
                     if check_line.has_z() and check_line.z == previous_z:
@@ -237,34 +241,19 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2,
 
             if first_extrude_move_idx is not None:
                 # Pattern found! Modify the lines
+                # Hop has been ensured to be at least min_hop_height above
+                # Now drop to target + z_offset before smoothing
 
-                # If hop is larger than z_offset, we need to:
-                # 1. Keep original hop-down height (for now, output unchanged)
-                # 2. Add an extra Z move to drop to target + z_offset
-                # If hop is smaller, we already increased it above
-
-                if hop_height > z_offset:
-                    # Large hop: replace hop-down with drop to intermediate height
-                    # The original large hop-up is preserved for travel clearance
-                    # Replace hop-down with drop to target + z_offset (not all the way to target)
-                    drop_z = target_z + z_offset
-                    # Preserve feedrate from original line if present
-                    if line.f is not None:
-                        output_lines.append(f"G1 F{format_num(line.f)} Z{format_num(drop_z)}")
-                    else:
-                        output_lines.append(f"G1 Z{format_num(drop_z)}")
-
-                    # Copy intermediate lines unchanged
-                    for k in range(i + 1, first_extrude_move_idx):
-                        output_lines.append(parsed_lines[k].original)
+                drop_z = target_z + z_offset
+                # Preserve feedrate from original line if present
+                if line.f is not None:
+                    output_lines.append(f"G1 F{format_num(line.f)} Z{format_num(drop_z)}")
                 else:
-                    # Small hop (already increased): modify hop-down to target + z_offset
-                    modified_z = target_z + z_offset
-                    output_lines.append(line.rebuild(new_z=modified_z))
+                    output_lines.append(f"G1 Z{format_num(drop_z)}")
 
-                    # Copy intermediate lines unchanged
-                    for k in range(i + 1, first_extrude_move_idx):
-                        output_lines.append(parsed_lines[k].original)
+                # Copy intermediate lines unchanged
+                for k in range(i + 1, first_extrude_move_idx):
+                    output_lines.append(parsed_lines[k].original)
 
                 # Process extrude+move lines with Z interpolation based on XY distance
                 cumulative_distance = 0.0
@@ -340,11 +329,12 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2,
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python ink_z_starts.py <input.gcode> [output.gcode] [z_offset] [transition_dist] [-v]")
+        print("Usage: python ink_z_starts.py <input.gcode> [output.gcode] [z_offset] [transition_dist] [min_hop] [-v]")
         print("  input.gcode     - Input G-code file")
         print("  output.gcode    - Output file (default: input_modified.gcode)")
-        print("  z_offset        - Z offset in mm (default: 0.2)")
+        print("  z_offset        - Z offset for smoothing start (default: 0.2mm)")
         print("  transition_dist - XY distance to transition Z over (default: 1.0mm)")
+        print("  min_hop         - Minimum hop height for travel clearance (default: 2.0mm)")
         print("  -v              - Verbose mode (show debug info)")
         sys.exit(1)
 
@@ -371,7 +361,11 @@ def main():
     if len(args) >= 4:
         transition_distance = float(args[3])
 
-    process_gcode(input_path, output_path, z_offset, transition_distance, verbose)
+    min_hop_height = 2.0
+    if len(args) >= 5:
+        min_hop_height = float(args[4])
+
+    process_gcode(input_path, output_path, z_offset, transition_distance, min_hop_height, verbose)
 
 
 if __name__ == "__main__":
