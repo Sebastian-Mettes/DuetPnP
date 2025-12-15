@@ -13,6 +13,10 @@ Modification:
 - Step 3: Z goes to (target + z_offset) instead of target
 - Step 5+: Z linearly interpolates from (target + z_offset) to target
           over the specified transition distance (default 1mm of XY motion)
+- If a single extrude move is longer than transition_distance, it is split
+  into two segments: the first covers exactly transition_distance with Z
+  interpolation, the second continues at target Z without modification.
+  E (extrusion) values are split proportionally between segments.
 """
 
 import math
@@ -267,6 +271,12 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2,
                 interp_y = current_y
                 # Track feedrate for restoration after smoothing
                 original_feedrate = None
+                # Track E value for proper splitting (assumes absolute E coordinates)
+                previous_e = 0.0
+                # Get previous E from intermediate lines if any stationary extrusion occurred
+                for m in range(i + 1, first_extrude_move_idx):
+                    if parsed_lines[m].has_e():
+                        previous_e = parsed_lines[m].e
 
                 while k < len(parsed_lines):
                     extrude_line = parsed_lines[k]
@@ -282,8 +292,65 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2,
                         dx = new_x - interp_x
                         dy = new_y - interp_y
                         distance = math.sqrt(dx * dx + dy * dy)
+
+                        # Check if this move would exceed transition distance
+                        # If so, split the move at exactly the transition point
+                        if cumulative_distance < transition_distance and cumulative_distance + distance > transition_distance:
+                            # This move crosses the transition boundary - split it
+                            remaining_transition = transition_distance - cumulative_distance
+                            split_fraction = remaining_transition / distance if distance > 0 else 1.0
+
+                            # Calculate intermediate point
+                            split_x = interp_x + dx * split_fraction
+                            split_y = interp_y + dy * split_fraction
+
+                            # Calculate proportional extrusion for the first segment
+                            # E is absolute, so split_e = previous_e + (target_e - previous_e) * fraction
+                            split_e = None
+                            if extrude_line.e is not None:
+                                e_delta = extrude_line.e - previous_e
+                                split_e = previous_e + e_delta * split_fraction
+
+                            # First segment: from current position to split point, with Z = target_z
+                            # Increase feedrate by 50% during smoothing
+                            boosted_f = extrude_line.f * 1.5 if extrude_line.f is not None else None
+                            first_parts = ["G1"]
+                            if boosted_f is not None:
+                                first_parts.append(f"F{format_num(boosted_f)}")
+                            first_parts.append(f"X{format_num(split_x)}")
+                            first_parts.append(f"Y{format_num(split_y)}")
+                            first_parts.append(f"Z{format_num(target_z)}")  # Transition complete at split
+                            if split_e is not None:
+                                first_parts.append(f"E{format_num(split_e)}")
+                            output_lines.append(" ".join(first_parts))
+
+                            # Restore original feedrate after smoothing segment
+                            if original_feedrate is not None:
+                                output_lines.append(f"G1 F{format_num(original_feedrate)}")
+
+                            # Second segment: from split point to destination, no Z modification
+                            second_parts = ["G1"]
+                            if extrude_line.f is not None and original_feedrate is None:
+                                second_parts.append(f"F{format_num(extrude_line.f)}")
+                            second_parts.append(f"X{format_num(new_x)}")
+                            second_parts.append(f"Y{format_num(new_y)}")
+                            if extrude_line.e is not None:
+                                second_parts.append(f"E{format_num(extrude_line.e)}")
+                            if extrude_line.comment:
+                                second_parts.append(extrude_line.comment)
+                            output_lines.append(" ".join(second_parts))
+
+                            # Update tracking
+                            interp_x, interp_y = new_x, new_y
+                            cumulative_distance = transition_distance  # Mark transition as complete
+                            k += 1
+                            break  # Transition complete, exit loop
+
                         cumulative_distance += distance
                         interp_x, interp_y = new_x, new_y
+                        # Update previous_e for next iteration
+                        if extrude_line.e is not None:
+                            previous_e = extrude_line.e
 
                         # Calculate Z based on how far through transition we are
                         # Z transitions from (target+offset) to target over transition_distance
