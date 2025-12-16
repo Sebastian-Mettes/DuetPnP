@@ -17,6 +17,8 @@ Modification:
   into two segments: the first covers exactly transition_distance with Z
   interpolation, the second continues at target Z without modification.
   E (extrusion) values are split proportionally between segments.
+- If the extrude path is shorter than transition_distance, the last move
+  is forced to target_z to ensure the transition always completes.
 """
 
 import math
@@ -278,6 +280,9 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2,
                     if parsed_lines[m].has_e():
                         previous_e = parsed_lines[m].e
 
+                transition_complete = False
+                last_extrude_output_idx = None  # Track index of last extrude move in output
+
                 while k < len(parsed_lines):
                     extrude_line = parsed_lines[k]
 
@@ -343,6 +348,7 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2,
                             # Update tracking
                             interp_x, interp_y = new_x, new_y
                             cumulative_distance = transition_distance  # Mark transition as complete
+                            transition_complete = True
                             k += 1
                             break  # Transition complete, exit loop
 
@@ -357,6 +363,7 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2,
                         if cumulative_distance >= transition_distance:
                             # Transition complete - use target Z
                             interpolated_z = target_z
+                            transition_complete = True
                         else:
                             # Interpolate Z based on progress
                             progress = cumulative_distance / transition_distance
@@ -365,6 +372,7 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2,
                         # Increase feedrate by 50% during smoothing
                         boosted_f = extrude_line.f * 1.5 if extrude_line.f is not None else None
                         output_lines.append(extrude_line.rebuild(add_z=interpolated_z, new_f=boosted_f))
+                        last_extrude_output_idx = len(output_lines) - 1
                         k += 1
 
                         # Stop adding Z after transition is complete
@@ -387,6 +395,15 @@ def process_gcode(input_path: str, output_path: str, z_offset: float = 0.2,
                     else:
                         # Other command - stop interpolation
                         break
+
+                # If transition didn't complete (short path), ensure last move ends at target_z
+                if not transition_complete and last_extrude_output_idx is not None:
+                    # Re-parse the last output line and rebuild with target_z
+                    last_line = parse_gcode_line(output_lines[last_extrude_output_idx])
+                    output_lines[last_extrude_output_idx] = last_line.rebuild(new_z=target_z)
+                    # Restore original feedrate after the short smoothing segment
+                    if original_feedrate is not None:
+                        output_lines.insert(last_extrude_output_idx + 1, f"G1 F{format_num(original_feedrate)}")
 
                 # Update tracked position
                 current_x, current_y = interp_x, interp_y
