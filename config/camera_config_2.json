@@ -19,7 +19,7 @@
     "description": "Not applicable - this camera is tool-mounted and moves with the tool"
   },
   "focus_distance": {
-    "value": 158.00,
+    "value": 152.00,
     "description": "Z distance from bed where camera is in focus (mm). For verification photos, this is added to placement Z value."
   },
   "transform": {

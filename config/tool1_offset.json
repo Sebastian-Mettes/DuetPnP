@@ -13,11 +13,11 @@
     "A": 0
   },
   "new_offsets": {
-    "U": -160.755,
+    "U": -160.675,
     "Y": -67.255,
     "Z": -6.85
   },
-  "position_difference_X": 0,
+  "position_difference_X": -0.08,
   "position_difference_Y": 0,
   "expected_position": [
     -30.4,
@@ -25,7 +25,7 @@
     168
   ],
   "actual_position": [
-    -30.4,
+    -30.48,
     87.8,
     168
   ],

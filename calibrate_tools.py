@@ -25,8 +25,8 @@ from machine_vision import VisionTools, CameraConfig, load_camera_config
 from machine_control import Printer, center_target_in_camera
 
 # Configuration
-TARGET_PICKUP_LOCATION = [10.0, 10.0, 1.0]  # For Tool 3 calibration
-TARGET_PLACE_LOCATION = [110.0, 110.0, 2]  # For Tool 3 calibration
+TARGET_PICKUP_LOCATION = [10.0, 10.0, -2]  # For Tool 3 calibration
+TARGET_PLACE_LOCATION = [110.0, 110.0, 3]  # For Tool 3 calibration
 TOOL3_CHECK_HEIGHT = 158.0
 
 
