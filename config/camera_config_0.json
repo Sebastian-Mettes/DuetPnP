@@ -13,8 +13,8 @@
     "description": "Manually determined camera offset from machine origin"
   },
   "machine_location": {
-    "x": 21.6,
-    "y": -56.7,
+    "x": -30.4,
+    "y": 87.8,
     "z": 168.0,
     "description": "XYZ coordinates where camera is mounted on machine"
   },
@@ -22,10 +22,10 @@
     "image_flip": "vertical",
     "image_rotate": 270,
     "pixel_to_mm": 0.02,
-    "pixel_x_to_machine_x": 1.0,
+    "pixel_x_to_machine_x": -1.0,
     "pixel_x_to_machine_y": 0.0,
     "pixel_y_to_machine_x": 0.0,
-    "pixel_y_to_machine_y": -1.0,
+    "pixel_y_to_machine_y": 1.0,
     "description": "Transform from pixel space to machine coordinates. Looking up: pixel +X → machine +Y, pixel +Y → machine -X"
   },
   "led_control": {
