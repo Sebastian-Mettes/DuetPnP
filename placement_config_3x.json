@@ -6,9 +6,9 @@
             "lower_template": "./templates/schottky_f_below.png",
             "feed_number": 2,
             "reel_location": {
-                "x": -58.2,
+                "x": -48.2,
                 "y": 236.1,
-                "z": 20.0
+                "z": 15
             },
             "reel_focus": 177,
             "feeder_button_location": {

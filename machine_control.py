@@ -465,9 +465,12 @@ class Printer:
         self.send_gcode_command(f"G0 C{angle_delta} F{feed_rate}", check=False)
         self.send_gcode_command("G90", check=False)  # Back to absolute positioning
 
-    def select_tool(self, tool_number: int):
+    def select_tool(self, tool_number: int, fast: Optional[bool] = False):
         """Select tool by number."""
-        self.send_gcode_command(f"T{tool_number}", check=False)
+        if fast:
+            self.send_gcode_command(f"T{tool_number} P0", check=False)
+        else:
+            self.send_gcode_command(f"T{tool_number}", check=False)
         # Add delay for tool changes (especially camera tool T3)
         self.wait_for_idle()
 
