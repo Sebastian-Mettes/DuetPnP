@@ -201,6 +201,10 @@ class VisionTools:
         self.hsv_lower = np.array([0, 0, 0])
         self.hsv_upper = np.array([180, 255, 255])
 
+        # Region of interest for faster searching (None = full image)
+        # Format: (x, y, width, height) defining center and size of search region
+        self.search_roi = None
+
         # Circle detection parameters
         self.dp = 1
         self.min_dist = 20
@@ -260,6 +264,46 @@ class VisionTools:
         """Get image center coordinates."""
         return self.IMAGE_CENTER
 
+    def set_search_roi(self, width_fraction: float = 0.25, height_fraction: float = 0.25):
+        """
+        Set a reduced search region of interest centered on the image.
+        
+        Args:
+            width_fraction: Fraction of image width to search (0.25 = 25%)
+            height_fraction: Fraction of image height to search (0.25 = 25%)
+        """
+        roi_width = int(self.width * width_fraction)
+        roi_height = int(self.height * height_fraction)
+        roi_x = (self.width - roi_width) // 2
+        roi_y = (self.height - roi_height) // 2
+        self.search_roi = (roi_x, roi_y, roi_width, roi_height)
+        print(f"Search ROI set: {self.search_roi} ({width_fraction*100:.0f}% x {height_fraction*100:.0f}%)")
+
+    def clear_search_roi(self):
+        """Clear the search ROI to search the full image."""
+        if self.search_roi is not None:
+            print("Search ROI cleared - using full image")
+        self.search_roi = None
+
+    def _apply_roi_mask(self, frame: np.ndarray) -> Tuple[np.ndarray, Tuple[int, int]]:
+        """
+        Apply ROI mask to frame if set, returning masked frame and offset.
+        
+        Returns:
+            (cropped_frame, (x_offset, y_offset)) where offset is the top-left corner of ROI
+        """
+        if self.search_roi is None:
+            return frame, (0, 0)
+        
+        x, y, w, h = self.search_roi
+        # Ensure bounds are valid
+        x = max(0, min(x, frame.shape[1] - 1))
+        y = max(0, min(y, frame.shape[0] - 1))
+        w = min(w, frame.shape[1] - x)
+        h = min(h, frame.shape[0] - y)
+        
+        return frame[y:y+h, x:x+w], (x, y)
+
     def find_component(self, template_path: str, angle: int = 0, exact_angle: bool = False) -> Tuple[Optional[Tuple[int, int]], Optional[int]]:
         """
         Find component in camera frame using template matching.
@@ -287,10 +331,15 @@ class VisionTools:
         else:
             template = self._template_cache[template_path]
 
+        # Apply ROI if set (for faster searching when target is near center)
+        roi_offset = (0, 0)
+        if self.search_roi is not None:
+            self.search_frame, roi_offset = self._apply_roi_mask(self.search_frame)
+
         image_height, image_width = self.search_frame.shape[:2]
         old_center = self.IMAGE_CENTER
-        self.IMAGE_CENTER = (image_width // 2, image_height // 2)
-        print(f"DEBUG find_component: Frame dimensions: {image_width}x{image_height}, IMAGE_CENTER: {self.IMAGE_CENTER}")
+        self.IMAGE_CENTER = (self.width // 2, self.height // 2)  # Always use full image center
+        print(f"DEBUG find_component: Frame dimensions: {image_width}x{image_height}, IMAGE_CENTER: {self.IMAGE_CENTER}, ROI offset: {roi_offset}")
         if old_center != self.IMAGE_CENTER:
             print(f"⚠️  WARNING: IMAGE_CENTER changed from {old_center} to {self.IMAGE_CENTER}")
 
@@ -389,7 +438,9 @@ class VisionTools:
             # Test 0x: center = (best_match[0] + 0, best_match[1] + 0)  # No offset
             # Test 2x: center = (best_match[0] + w, best_match[1] + h)  # Double offset
             center = (best_match[0] + w//2, best_match[1] + h//2)  # NORMAL (1x offset)
-            print(f"DEBUG template_match: best_match top-left=({best_match[0]}, {best_match[1]}), template_size=({w}x{h}), adding offset=({w//2}, {h//2}), final_center={center}")
+            # Add ROI offset back to get coordinates in full image space
+            center = (center[0] + roi_offset[0], center[1] + roi_offset[1])
+            print(f"DEBUG template_match: best_match top-left=({best_match[0]}, {best_match[1]}), template_size=({w}x{h}), adding offset=({w//2}, {h//2}), ROI offset={roi_offset}, final_center={center}")
             self.is_component_detected = True
             return (center, best_angle)
         else:
@@ -437,6 +488,11 @@ class VisionTools:
             if frame is None:
                 continue
 
+            # Apply ROI if set (for faster searching when target is near center)
+            roi_offset = (0, 0)
+            if self.search_roi is not None:
+                frame, roi_offset = self._apply_roi_mask(frame)
+
             # Downsample for speed
             if downsample:
                 frame_small = cv2.resize(frame, None, fx=scale, fy=scale,
@@ -466,9 +522,9 @@ class VisionTools:
                 circles = np.int32(np.around(circles))
 
                 if len(circles[0]) == 1:
-                    # Single circle found - scale back to original coordinates
-                    x = int(circles[0][0][0] / scale)
-                    y = int(circles[0][0][1] / scale)
+                    # Single circle found - scale back to original coordinates and add ROI offset
+                    x = int(circles[0][0][0] / scale) + roi_offset[0]
+                    y = int(circles[0][0][1] / scale) + roi_offset[1]
                     return (x, y)
 
                 elif len(circles[0]) > 1:
@@ -481,9 +537,9 @@ class VisionTools:
                             max_distance = max(max_distance, dist)
 
                     if max_distance <= (10 * scale):
-                        # Circles close together - take average
-                        avg_x = int(np.mean([c[0] for c in circles[0]]) / scale)
-                        avg_y = int(np.mean([c[1] for c in circles[0]]) / scale)
+                        # Circles close together - take average, add ROI offset
+                        avg_x = int(np.mean([c[0] for c in circles[0]]) / scale) + roi_offset[0]
+                        avg_y = int(np.mean([c[1] for c in circles[0]]) / scale) + roi_offset[1]
                         return (avg_x, avg_y)
 
             frame_count += 1

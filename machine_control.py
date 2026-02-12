@@ -605,6 +605,7 @@ def center_target_in_camera(
     image_center = vision.get_image_center()
     iteration = 0
     window_name = "Centering Progress"
+    first_move_done = False  # Track if we've done at least one move
 
     if debug:
         print(f"Starting centering: tolerance={tolerance}px, max_iter={max_iterations}")
@@ -621,10 +622,18 @@ def center_target_in_camera(
             detected_pos = None
 
             if result is None:
-                if debug:
-                    print(f"Iteration {iteration}: Target not detected")
-                iteration += 1
-                continue
+                # If we have ROI set and detection failed, try full image
+                if vision.search_roi is not None:
+                    if debug:
+                        print(f"Iteration {iteration}: Target not detected with ROI, trying full image...")
+                    vision.clear_search_roi()
+                    result = detection_method()
+                
+                if result is None:
+                    if debug:
+                        print(f"Iteration {iteration}: Target not detected")
+                    iteration += 1
+                    continue
 
             if isinstance(result, tuple):
                 if len(result) == 3:
@@ -687,6 +696,7 @@ def center_target_in_camera(
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     print("\nDisplay closed by user")
                     cv2.destroyWindow(window_name)
+                    vision.clear_search_roi()  # Clean up ROI
                     final_pos = printer.get_current_position()
                     return (False, final_pos)
 
@@ -706,6 +716,7 @@ def center_target_in_camera(
                         )
                         cv2.waitKey(1000)
                     cv2.destroyWindow(window_name)
+                vision.clear_search_roi()  # Clean up ROI
                 final_pos = printer.get_current_position()
                 return (True, final_pos)
 
@@ -740,19 +751,29 @@ def center_target_in_camera(
                 vision.capture_frame()
             time.sleep(0.1)  # One more delay for fresh frame
 
+            # After first move, reduce search area to 25% of each axis for speed
+            # The target should now be close to center
+            if not first_move_done:
+                first_move_done = True
+                vision.set_search_roi(width_fraction=0.25, height_fraction=0.25)
+                if debug:
+                    print("First move complete - reduced search area to 25% for faster detection")
+
             iteration += 1
 
         print(f"Failed to center after {max_iterations} iterations")
         if show_display:
             cv2.destroyWindow(window_name)
+        vision.clear_search_roi()  # Clean up ROI
         final_pos = printer.get_current_position()
         return (False, final_pos)
 
     except Exception as e:
-        # Clean up display on error
+        # Clean up display and ROI on error
         if show_display:
             try:
                 cv2.destroyWindow(window_name)
             except:
                 pass
+        vision.clear_search_roi()  # Clean up ROI
         raise e
