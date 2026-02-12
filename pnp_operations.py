@@ -362,11 +362,16 @@ class PnPWorkflow:
         photo_focus_height = focus_distance + placement_pos['z']
 
         # Switch to camera tool
-        self.printer.select_tool(3)
-        time.sleep(2.5)  # Camera tool changetime
+        # Use fast tool change if already on Tool 2 or 3 (no physical tool change needed)
+        current_tool = self.printer.get_current_tool()
+        use_fast = current_tool in [2, 3]
+        self.printer.select_tool(3, fast=use_fast)
+        if not use_fast:
+            self.printer.select_tool(3)  # Camera tool changetime (only needed for physical change)
 
         # Move to placement location at focus height
         self.printer.linear_move(z=150)  # Safe height first
+        self.printer.control_led(2, True)
         self.printer.linear_move(
             x=placement_pos['x'],
             y=placement_pos['y'],
@@ -375,13 +380,13 @@ class PnPWorkflow:
         self.printer.wait_for_idle()
 
         # Turn on upper camera LED
-        self.printer.control_led(2, True)
-        time.sleep(0.3)  # Let camera adjust
+        
+        #time.sleep(0.3)  # Let camera adjust
 
         # Clear camera buffer after movement and LED turn-on
         for _ in range(5):
             self.vision_upper.capture_frame()
-        time.sleep(0.1)
+        #time.sleep(0.1)
 
         # Capture frame
         frame = self.vision_upper.capture_frame()
@@ -461,7 +466,10 @@ class PnPWorkflow:
         print(f"  Pressing feeder button at X{button_loc['x']:.1f}, Y{button_loc['y']:.1f}")
 
         # Switch to PnP tool (T2) for pressing button
-        self.printer.select_tool(2)
+        # Use fast tool change if already on Tool 2 or 3 (no physical tool change needed)
+        current_tool = self.printer.get_current_tool()
+        use_fast = current_tool in [2, 3]
+        self.printer.select_tool(2, fast=use_fast)
         self.printer.wait_for_idle()
 
         # Move to safe height above button
@@ -516,7 +524,12 @@ class PnPWorkflow:
         reel_focus = component.get('reel_focus', 101.25)
         
         # Move upper camera to feeder location
-        self.printer.select_tool(3)  # Camera tool
+        # Use fast tool change if already on Tool 2 or 3 (no physical tool change needed)
+        current_tool = self.printer.get_current_tool()
+        use_fast = current_tool in [2, 3]
+        if use_fast:
+            print(f"    (Fast tool change: current tool is T{current_tool})")
+        self.printer.select_tool(3, fast=use_fast)  # Camera tool
         self.printer.control_led(2, True)  # Upper camera LED
         self.printer.linear_move(z=150,f = 6000)  # Safe height
         self.printer.linear_move(x=reel_loc['x']+2, y=reel_loc['y']-2, z=reel_focus, f=12000)
@@ -550,7 +563,7 @@ class PnPWorkflow:
             detect_component_upper,
             tolerance=2,
             max_iterations=self.MAX_ITERATIONS,
-            debug=True,
+            debug=False,
             show_display=True
         )
         
@@ -575,11 +588,10 @@ class PnPWorkflow:
         self.printer.control_vacuum(True)
         #time.sleep(0.25) no longer necessary
         z_pickup_height = component.get('reel_location').get('z', 0)
-        self.printer.linear_move(z=z_pickup_height+2,f=6000)
-        self.printer.linear_move(z=z_pickup_height) #Move to pickup height
+        self.printer.linear_move(z=z_pickup_height,f=6000) #Move to pickup height
         self.printer.wait_for_idle()
-        time.sleep(0.1) #Ensure Part is picked up.
-        self.printer.linear_move(z=150, f=12000) #Lift to safe height
+        #time.sleep(0.1) #Ensure Part is picked up.
+        self.printer.linear_move(z=50, f=12000) #Lift to safe height
         self.printer.wait_for_idle()
         
         # 3. Determine orientation with lower camera
@@ -751,7 +763,7 @@ class PnPWorkflow:
             tolerance=self.TOLERANCE,
             max_iterations=20,  # Fewer iterations needed since already roughly centered
             feed_rate=150,  # Slower for precision
-            debug=True,
+            debug=False,
             show_display=True
         )
 
@@ -765,10 +777,7 @@ class PnPWorkflow:
                 'X': current_pos['X'] - camera_loc[0],
                 'Y': current_pos['Y'] - camera_loc[1]
             }
-            print(f"  DEBUG: Camera location: X{camera_loc[0]:.3f}, Y{camera_loc[1]:.3f}")
-            print(f"  DEBUG: Current position: X{current_pos['X']:.3f}, Y{current_pos['Y']:.3f}")
             print(f"  ✓ Component offset: X{component_offset['X']:+.3f}, Y{component_offset['Y']:+.3f}")
-            print(f"  DEBUG: Will place at target + offset")
         else:
             print("  Warning: Could not center component, using no offset")
             component_offset = {'X': 0, 'Y': 0}
@@ -792,21 +801,13 @@ class PnPWorkflow:
         diff_x = abs(final_x - alt_final_x)
         diff_y = abs(final_y - alt_final_y)
 
-        print(f"  DEBUG: Target position: X{target_pos['x']:.3f}, Y{target_pos['y']:.3f}")
-        if self.placement_offset['x'] != 0 or self.placement_offset['y'] != 0:
-            print(f"  DEBUG: Placement offset: X{self.placement_offset['x']:+.3f}, Y{self.placement_offset['y']:+.3f}")
-        print(f"  DEBUG: Final position (target + component_offset + placement_offset): X{final_x:.3f}, Y{final_y:.3f}")
-        # print(f"  DEBUG: Method 2 (current + delta): X{alt_final_x:.3f}, Y{alt_final_y:.3f}")
+        # Debug position info (commented out for speed)
+        # print(f"  DEBUG: Target: X{target_pos['x']:.3f}, Y{target_pos['y']:.3f} -> Final: X{final_x:.3f}, Y{final_y:.3f}")
 
-        # if diff_x > 0.001 or diff_y > 0.001:
-        #     print(f"  ⚠️  WARNING: Calculation mismatch! Diff: X{diff_x:.4f}, Y{diff_y:.4f}")
-        # else:
-        #     print(f"  ✓ Calculations match (diff < 0.001mm)")
-
-        self.printer.linear_move(z=150,f=6000)  # Safe height
-        self.printer.linear_move(x=final_x-2, y=final_y-2, f=6000) #Note - manual offsets
+        #self.printer.linear_move(z=150,f=6000)  # Safe height
+        self.printer.linear_move(x=final_x-2, y=final_y-2, z=target_pos['z']+5,f=6000) #Note - manual offsets
         self.printer.linear_move(x=final_x, y=final_y, f=300)
-        self.printer.linear_move(z=target_pos['z']+10,f=6000)
+        self.printer.linear_move(z=target_pos['z']+5,f=6000)
         self.printer.linear_move(z=target_pos['z'])
         self.printer.wait_for_idle()  # CRITICAL: Wait for Z to reach placement height
         self.printer.control_vacuum(False)

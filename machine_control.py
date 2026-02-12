@@ -465,6 +465,20 @@ class Printer:
         self.send_gcode_command(f"G0 C{angle_delta} F{feed_rate}", check=False)
         self.send_gcode_command("G90", check=False)  # Back to absolute positioning
 
+    def get_current_tool(self) -> int:
+        """
+        Get the currently active tool number using Duet object model.
+        
+        Returns:
+            int: Current tool number, or -1 if no tool selected
+        """
+        self.send_gcode_command('M409 K"state.currentTool"', check=False)
+        try:
+            data = json.loads(self.response)
+            return data.get('result', -1)
+        except json.JSONDecodeError:
+            return -1
+
     def select_tool(self, tool_number: int, fast: Optional[bool] = False):
         """Select tool by number."""
         if fast:
@@ -684,7 +698,8 @@ def center_target_in_camera(
 
             # Show visual feedback if enabled
             if show_display and frame is not None:
-                status_text = f"Iter {iteration+1}/{max_iterations} | Offset: ({x_pixel_offset:.1f}, {y_pixel_offset:.1f})px"
+                # Only show text overlay in debug mode for speed
+                status_text = f"Iter {iteration+1}/{max_iterations} | Offset: ({x_pixel_offset:.1f}, {y_pixel_offset:.1f})px" if debug else None
                 show_frame_with_overlay(
                     frame=frame,
                     detected_pos=(int(x_pixel), int(y_pixel)),
@@ -705,16 +720,16 @@ def center_target_in_camera(
                 if debug:
                     print(f"Target centered! Final offset: ({x_pixel_offset}, {y_pixel_offset}) pixels")
                 if show_display:
-                    # Show final centered frame for 1 second
+                    # Show final centered frame briefly
                     if frame is not None:
                         show_frame_with_overlay(
                             frame=frame,
                             detected_pos=(int(x_pixel), int(y_pixel)),
                             center_pos=(int(image_center[0]), int(image_center[1])),
                             window_name=window_name,
-                            text="CENTERED!"
+                            text="CENTERED!" if debug else None
                         )
-                        cv2.waitKey(1000)
+                        cv2.waitKey(500 if not debug else 1000)  # Shorter wait when not debugging
                     cv2.destroyWindow(window_name)
                 vision.clear_search_roi()  # Clean up ROI
                 final_pos = printer.get_current_position()

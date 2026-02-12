@@ -135,7 +135,7 @@ class VisionTools:
     """
 
     def __init__(self, camera_number: int, target: str = 'tool', tool_number: Optional[int] = None,
-                 camera_config: Optional[CameraConfig] = None):
+                 camera_config: Optional[CameraConfig] = None, debug: bool = False):
         """
         Initialize VisionTools with camera and optional configuration.
 
@@ -144,11 +144,13 @@ class VisionTools:
             target: Target type ('tool', 'camera', 'target')
             tool_number: Specific tool number for tool-specific vision params (optional)
             camera_config: CameraConfig instance for coordinate transforms (optional)
+            debug: Enable verbose debug output (default False)
         """
         self.camera_number = camera_number
         self.target = target
         self.tool_number = tool_number
         self.camera_config = camera_config
+        self.debug = debug
 
         # Initialize camera with V4L2 backend for Raspberry Pi
         self.camera = cv2.VideoCapture(self.camera_number, cv2.CAP_V4L2)
@@ -277,11 +279,12 @@ class VisionTools:
         roi_x = (self.width - roi_width) // 2
         roi_y = (self.height - roi_height) // 2
         self.search_roi = (roi_x, roi_y, roi_width, roi_height)
-        print(f"Search ROI set: {self.search_roi} ({width_fraction*100:.0f}% x {height_fraction*100:.0f}%)")
+        if self.debug:
+            print(f"Search ROI set: {self.search_roi} ({width_fraction*100:.0f}% x {height_fraction*100:.0f}%)")
 
     def clear_search_roi(self):
         """Clear the search ROI to search the full image."""
-        if self.search_roi is not None:
+        if self.search_roi is not None and self.debug:
             print("Search ROI cleared - using full image")
         self.search_roi = None
 
@@ -339,9 +342,10 @@ class VisionTools:
         image_height, image_width = self.search_frame.shape[:2]
         old_center = self.IMAGE_CENTER
         self.IMAGE_CENTER = (self.width // 2, self.height // 2)  # Always use full image center
-        print(f"DEBUG find_component: Frame dimensions: {image_width}x{image_height}, IMAGE_CENTER: {self.IMAGE_CENTER}, ROI offset: {roi_offset}")
-        if old_center != self.IMAGE_CENTER:
-            print(f"⚠️  WARNING: IMAGE_CENTER changed from {old_center} to {self.IMAGE_CENTER}")
+        if self.debug:
+            print(f"DEBUG find_component: Frame dimensions: {image_width}x{image_height}, IMAGE_CENTER: {self.IMAGE_CENTER}, ROI offset: {roi_offset}")
+            if old_center != self.IMAGE_CENTER:
+                print(f"⚠️  WARNING: IMAGE_CENTER changed from {old_center} to {self.IMAGE_CENTER}")
 
         # Downsample for faster search
         scale_factor = 0.5
@@ -440,7 +444,8 @@ class VisionTools:
             center = (best_match[0] + w//2, best_match[1] + h//2)  # NORMAL (1x offset)
             # Add ROI offset back to get coordinates in full image space
             center = (center[0] + roi_offset[0], center[1] + roi_offset[1])
-            print(f"DEBUG template_match: best_match top-left=({best_match[0]}, {best_match[1]}), template_size=({w}x{h}), adding offset=({w//2}, {h//2}), ROI offset={roi_offset}, final_center={center}")
+            if self.debug:
+                print(f"DEBUG template_match: best_match top-left=({best_match[0]}, {best_match[1]}), template_size=({w}x{h}), adding offset=({w//2}, {h//2}), ROI offset={roi_offset}, final_center={center}")
             self.is_component_detected = True
             return (center, best_angle)
         else:
