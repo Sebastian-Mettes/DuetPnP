@@ -402,7 +402,9 @@ def main():
                     continue
                 
                 # Detect component using template matching
-                result = vision_lower.find_component(str(template_path), angle=0, exact_angle=False)
+                # Pass the current C-axis angle as expected angle (normalized to -180 to 180)
+                expected_angle = ((current_c_angle + 180) % 360) - 180
+                result = vision_lower.find_component(str(template_path), angle=int(expected_angle), exact_angle=False)
                 
                 display = frame.copy()
                 
