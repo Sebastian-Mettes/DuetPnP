@@ -60,7 +60,7 @@ class TemplateMatchingTester:
 
         # Template matching parameters
         self.match_threshold = 0.6
-        self.search_angles = list(range(-15, 16, 5))  # Coarse search angles
+        self.search_angles = list(range(-15, 16, 1))  # Coarse search angles
         self.exact_angle = None  # If set, only search at this angle
 
         # Display state

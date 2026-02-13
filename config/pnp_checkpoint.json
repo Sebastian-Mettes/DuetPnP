@@ -1,14 +1,15 @@
 {
   "description": "PnP workflow checkpoint for resume capability",
   "version": "1.0",
-  "last_updated": "2026-02-12T20:19:37.193100",
+  "last_updated": "2026-02-13T15:35:46.867057",
   "status": "paused",
   "config_file": "./placement_config_3x.json",
-  "session_id": "20260212_201820",
+  "session_id": "20260213_153342",
   "current_component_index": 0,
-  "current_placement_index": 1,
+  "current_placement_index": 2,
   "completed_placements": [
-    "schottky_0_0"
+    "schottky_0_0",
+    "schottky_0_1"
   ],
   "failed_placements": []
 }

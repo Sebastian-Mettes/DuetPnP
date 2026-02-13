@@ -11,9 +11,9 @@ cd /Users/sebastian/Code/DuetPnP/YOLO/scripts
 
 # Upper camera (feeder view) - ~300 images
 python collect_data_upper.py \
-    --template ../../templates/0402_cap_above.png \
+    --template ../../templates/schottky_f_above.png \
     --count 300 \
-    --start-x -48.2 \
+    --start-x -46.2 \
     --start-y 236.1 \
     --start-z 177
 

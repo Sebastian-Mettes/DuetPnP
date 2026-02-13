@@ -227,7 +227,7 @@ def main():
             
             printer.linear_move(x=target_x, y=target_y, f=3000)
             printer.wait_for_idle()
-            time.sleep(0.2)  # Let vibrations settle
+            time.sleep(0.1)  # Let vibrations settle
             
             # Clear buffer and capture fresh frame
             for _ in range(3):
@@ -241,6 +241,7 @@ def main():
             
             # Detect component using template matching
             result = vision.find_component(str(template_path), angle=0, exact_angle=False)
+            print(result)
             
             display = frame.copy()
             
@@ -252,7 +253,7 @@ def main():
                 corners = calculate_obb_corners(
                     center_x, center_y,
                     template_w, template_h,
-                    angle
+                    -angle
                 )
                 
                 # Draw on display
