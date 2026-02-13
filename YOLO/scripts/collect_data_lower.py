@@ -6,15 +6,19 @@ Automatically collects and labels training data using existing template matching
 Uses the current vision system as "ground truth" to generate YOLO-OBB labels.
 
 This script:
-1. Picks up a component from the feeder
-2. Moves to lower camera position
-3. Captures images at various C-axis rotations and X/Y positions
-4. Drops the component and picks a new one
-5. Repeats until target count reached
+1. Uses upper camera + template matching to find component in feeder
+2. Centers on the component and picks it up
+3. Moves to lower camera position
+4. Captures images at various C-axis rotations and X/Y positions
+5. Drops the component and picks a new one
+6. Repeats until target count reached
 
 Usage:
-    python collect_data_lower.py --template ../../templates/0402_cap_below.png --count 200 \
-        --feeder-x -48.2 --feeder-y 236.1 --feeder-z 20.0
+    python collect_data_lower.py \
+        --template ../../templates/0402_cap_below.png \
+        --upper-template ../../templates/0402_cap_above.png \
+        --count 200 \
+        --feeder-x -48.2 --feeder-y 236.1 --feeder-z 20.0 --feeder-focus 177
 """
 
 import sys
@@ -32,7 +36,7 @@ from datetime import datetime
 from pathlib import Path
 
 from machine_vision import VisionTools, CameraConfig
-from machine_control import Printer
+from machine_control import Printer, center_target_in_camera
 
 
 def calculate_obb_corners(center_x: float, center_y: float, 
@@ -110,22 +114,74 @@ def draw_obb(frame: np.ndarray, corners: list, color=(0, 255, 0), thickness=2):
     return frame
 
 
-def pick_component(printer: Printer, feeder_x: float, feeder_y: float, feeder_z: float):
-    """Pick up a component from the feeder."""
-    print("  Picking component from feeder...")
+def pick_component(printer: Printer, vision_upper: VisionTools, camera_config_upper: CameraConfig,
+                   upper_template_path: str, feeder_x: float, feeder_y: float, 
+                   feeder_z: float, feeder_focus: float) -> bool:
+    """
+    Find and pick up a component from the feeder using vision.
     
-    # Move to safe height
-    printer.linear_move(z=50, f=6000)
+    Returns:
+        True if component was successfully picked, False otherwise
+    """
+    print("  Finding component in feeder...")
+    
+    # Switch to camera tool (T3)
+    printer.select_tool(3)
+    printer.control_led(2, True)  # Upper camera LED
+    
+    # Move to feeder location at focus height
+    printer.linear_move(z=150, f=6000)
     printer.wait_for_idle()
-    
-    # Move above feeder
     printer.linear_move(x=feeder_x, y=feeder_y, f=6000)
+    printer.linear_move(z=feeder_focus, f=3000)
     printer.wait_for_idle()
+    time.sleep(0.3)  # Let camera settle
     
-    # Turn on vacuum
+    # Clear camera buffer
+    for _ in range(5):
+        vision_upper.capture_frame()
+    
+    # Define detection method for centering
+    def detect_component():
+        frame = vision_upper.capture_frame()
+        if frame is None:
+            return None, None, None
+        result = vision_upper.find_component(upper_template_path, angle=0, exact_angle=False)
+        if result[0] is not None:
+            pos, angle = result
+            return {'X': pos[0], 'Y': pos[1]}, angle, frame
+        return None, None, frame
+    
+    # Center on component
+    success, centered_pos = center_target_in_camera(
+        printer=printer,
+        vision=vision_upper,
+        camera_config=camera_config_upper,
+        detection_method=detect_component,
+        tolerance=2,
+        max_iterations=15,
+        feed_rate=1200,
+        debug=False,
+        show_display=True
+    )
+    
+    if not success:
+        print("  Failed to find/center component in feeder")
+        printer.control_led(2, False)
+        return False
+    
+    print(f"  Component centered at X{centered_pos['X']:.2f}, Y{centered_pos['Y']:.2f}")
+    
+    # Turn off camera LED
+    printer.control_led(2, False)
+    
+    # Switch to PnP tool (T2) - use fast since we're on T3
+    printer.select_tool(2, fast=True)
+    
+    # Turn on vacuum before lowering
     printer.control_vacuum(True)
     
-    # Lower to pickup height
+    # Lower to pickup height (we're already at the right X/Y from centering)
     printer.linear_move(z=feeder_z, f=3000)
     printer.wait_for_idle()
     time.sleep(0.2)  # Let vacuum grip
@@ -135,6 +191,7 @@ def pick_component(printer: Printer, feeder_x: float, feeder_y: float, feeder_z:
     printer.wait_for_idle()
     
     print("  Component picked")
+    return True
 
 
 def drop_component(printer: Printer, drop_x: float = None, drop_y: float = None):
@@ -166,6 +223,7 @@ def drop_component(printer: Printer, drop_x: float = None, drop_y: float = None)
 def main():
     parser = argparse.ArgumentParser(description='Collect YOLO-OBB training data from lower camera')
     parser.add_argument('--template', required=True, help='Path to template image (lower camera view)')
+    parser.add_argument('--upper-template', required=True, help='Path to template image (upper camera/feeder view)')
     parser.add_argument('--count', type=int, default=200, help='Target number of images to collect')
     parser.add_argument('--images-per-component', type=int, default=20, 
                         help='Images to capture per picked component')
@@ -173,6 +231,7 @@ def main():
     parser.add_argument('--feeder-x', type=float, required=True, help='Feeder X position')
     parser.add_argument('--feeder-y', type=float, required=True, help='Feeder Y position')
     parser.add_argument('--feeder-z', type=float, required=True, help='Feeder pickup Z height')
+    parser.add_argument('--feeder-focus', type=float, required=True, help='Camera focus height above feeder')
     parser.add_argument('--drop-x', type=float, help='Drop location X (default: feeder location)')
     parser.add_argument('--drop-y', type=float, help='Drop location Y (default: feeder location)')
     parser.add_argument('--output-dir', default='../data', help='Output directory for images/labels')
@@ -184,6 +243,10 @@ def main():
     if not template_path.is_absolute():
         template_path = script_dir / template_path
     
+    upper_template_path = Path(args.upper_template)
+    if not upper_template_path.is_absolute():
+        upper_template_path = script_dir / upper_template_path
+    
     output_dir = Path(args.output_dir)
     if not output_dir.is_absolute():
         output_dir = script_dir / output_dir
@@ -193,27 +256,38 @@ def main():
     images_dir.mkdir(parents=True, exist_ok=True)
     labels_dir.mkdir(parents=True, exist_ok=True)
     
-    # Load template to get dimensions
+    # Load lower camera template to get dimensions
     template = cv2.imread(str(template_path), cv2.IMREAD_GRAYSCALE)
     if template is None:
         print(f"Error: Could not load template: {template_path}")
         return 1
     
     template_h, template_w = template.shape[:2]
-    print(f"Template loaded: {template_path.name} ({template_w}x{template_h} pixels)")
+    print(f"Lower template loaded: {template_path.name} ({template_w}x{template_h} pixels)")
+    
+    # Load upper camera template (for feeder detection)
+    upper_template = cv2.imread(str(upper_template_path), cv2.IMREAD_GRAYSCALE)
+    if upper_template is None:
+        print(f"Error: Could not load upper template: {upper_template_path}")
+        return 1
+    print(f"Upper template loaded: {upper_template_path.name}")
     
     # Initialize hardware
     print("\nInitializing hardware...")
     printer = Printer(upward_camera_number=0, debug=False)
     
     # Load camera config for lower camera (camera 0)
-    camera_config = CameraConfig('config/camera_config_0.json')
-    vision = VisionTools(0, target='tool', camera_config=camera_config, debug=False)
+    camera_config_lower = CameraConfig('config/camera_config_0.json')
+    vision_lower = VisionTools(0, target='tool', camera_config=camera_config_lower, debug=False)
     
-    # Get image dimensions
-    img_width = vision.width
-    img_height = vision.height
-    print(f"Camera resolution: {img_width}x{img_height}")
+    # Load camera config for upper camera (camera 2) - for feeder detection
+    camera_config_upper = CameraConfig('config/camera_config_2.json')
+    vision_upper = VisionTools(2, target='tool', camera_config=camera_config_upper, debug=False)
+    
+    # Get image dimensions from lower camera
+    img_width = vision_lower.width
+    img_height = vision_lower.height
+    print(f"Lower camera resolution: {img_width}x{img_height}")
     
     # Get camera location from printer config
     camera_loc = printer.camera_location
@@ -223,11 +297,8 @@ def main():
     drop_x = args.drop_x if args.drop_x else args.feeder_x
     drop_y = args.drop_y if args.drop_y else args.feeder_y
     
-    # Select PnP tool
-    print("\nSetting up PnP tool...")
-    printer.select_tool(2)
-    printer.control_led(0, True)  # Lower camera LED
-    printer.wait_for_idle()
+    # Initial tool selection will be handled by pick_component
+    print("\nReady to start data collection...")
     
     # Session ID for unique filenames
     session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -238,6 +309,7 @@ def main():
     print(f"Images per component: {args.images_per_component}")
     print(f"X/Y jitter: ±{args.jitter}mm")
     print(f"Feeder location: X{args.feeder_x}, Y{args.feeder_y}, Z{args.feeder_z}")
+    print(f"Feeder focus height: {args.feeder_focus}")
     print(f"{'='*50}")
     print("\nControls:")
     print("  'q' - Quit collection")
@@ -259,10 +331,26 @@ def main():
     
     try:
         while collected < args.count:
-            # Pick up a new component
+            # Pick up a new component using vision
             components_used += 1
             print(f"\n--- Component #{components_used} ---")
-            pick_component(printer, args.feeder_x, args.feeder_y, args.feeder_z)
+            pick_success = pick_component(
+                printer=printer,
+                vision_upper=vision_upper,
+                camera_config_upper=camera_config_upper,
+                upper_template_path=str(upper_template_path),
+                feeder_x=args.feeder_x,
+                feeder_y=args.feeder_y,
+                feeder_z=args.feeder_z,
+                feeder_focus=args.feeder_focus
+            )
+            
+            if not pick_success:
+                print("  Skipping - failed to pick component")
+                continue
+            
+            # Turn on lower camera LED
+            printer.control_led(0, True)
             
             # Move to camera location
             printer.linear_move(x=camera_loc[0], y=camera_loc[1], z=camera_loc[2], f=6000)
@@ -271,7 +359,7 @@ def main():
             
             # Clear camera buffer
             for _ in range(5):
-                vision.capture_frame()
+                vision_lower.capture_frame()
             
             # Capture multiple images with this component
             images_this_component = 0
@@ -294,16 +382,16 @@ def main():
                 
                 # Clear buffer and capture fresh frame
                 for _ in range(3):
-                    vision.capture_frame()
+                    vision_lower.capture_frame()
                 
-                frame = vision.capture_frame()
+                frame = vision_lower.capture_frame()
                 if frame is None:
                     print("Failed to capture frame")
                     failed += 1
                     continue
                 
                 # Detect component using template matching
-                result = vision.find_component(str(template_path), angle=0, exact_angle=False)
+                result = vision_lower.find_component(str(template_path), angle=0, exact_angle=False)
                 
                 display = frame.copy()
                 
@@ -435,11 +523,13 @@ def main():
         print(f"  Output directory: {output_dir}")
         print(f"{'='*50}")
         
-        vision.cleanup()
+        vision_lower.cleanup()
+        vision_upper.cleanup()
     
     return 0
 
 
 if __name__ == '__main__':
     sys.exit(main())
+
 

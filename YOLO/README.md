@@ -19,11 +19,13 @@ python collect_data_upper.py \
 
 # Lower camera (nozzle view) - ~300 images
 python collect_data_lower.py \
-    --template ../../templates/0402_cap_below.png \
+    --template ../../templates/schottky_f_below.png \
+    --upper-template ../../templates/schottky_f_above.png \
     --count 300 \
     --feeder-x -48.2 \
     --feeder-y 236.1 \
-    --feeder-z 20.0
+    --feeder-z 15.0 \
+    --feeder-focus 17
 ```
 
 ### Day 1 Night: Prepare & Train
@@ -135,37 +137,44 @@ cd YOLO/scripts
 # Basic usage with feeder location
 python collect_data_lower.py \
     --template ../../templates/0402_cap_below.png \
+    --upper-template ../../templates/0402_cap_above.png \
     --count 200 \
     --feeder-x -48.2 \
     --feeder-y 236.1 \
-    --feeder-z 20.0
+    --feeder-z 20.0 \
+    --feeder-focus 177
 
 # Customize images per component and jitter
 python collect_data_lower.py \
     --template ../../templates/0402_cap_below.png \
+    --upper-template ../../templates/0402_cap_above.png \
     --count 500 \
     --images-per-component 30 \
     --jitter 2.0 \
     --feeder-x -48.2 \
     --feeder-y 236.1 \
-    --feeder-z 20.0
+    --feeder-z 20.0 \
+    --feeder-focus 177
 ```
 
 **Options:**
-- `--template`: Path to template image (required)
+- `--template`: Path to lower camera template image (required)
+- `--upper-template`: Path to upper camera template for feeder detection (required)
 - `--count`: Target number of images (default: 200)
 - `--images-per-component`: Captures per picked component (default: 20)
 - `--jitter`: Random X/Y movement range in mm (default: 1.5)
 - `--feeder-x`, `--feeder-y`, `--feeder-z`: Feeder pickup location (required)
+- `--feeder-focus`: Camera focus height above feeder (required)
 - `--drop-x`, `--drop-y`: Component drop location (default: feeder location)
 - `--output-dir`: Output directory (default: ../data)
 
 **Automatic workflow:**
-1. Pick component from feeder
-2. Move to lower camera position
-3. Capture images with random C-axis rotation (±180°) and X/Y jitter
-4. After N images, drop component and pick new one
-5. Auto-reset C-axis if cumulative rotation exceeds 360°
+1. Use upper camera + template matching to find component in feeder
+2. Center on component and pick it up
+3. Move to lower camera position
+4. Capture images with random C-axis rotation (±180°) and X/Y jitter
+5. After N images, drop component and pick new one
+6. Auto-reset C-axis if cumulative rotation exceeds 360°
 
 **Controls during collection:**
 - `q` - Quit
