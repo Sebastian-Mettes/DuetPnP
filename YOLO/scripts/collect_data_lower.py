@@ -412,11 +412,11 @@ def main():
                     center, angle = result
                     center_x, center_y = center
                     
-                    # Calculate OBB corners
+                    # Calculate OBB corners (negate angle for correct orientation)
                     corners = calculate_obb_corners(
                         center_x, center_y,
                         template_w, template_h,
-                        angle
+                        -angle  # Negate to match visual orientation
                     )
                     
                     # Draw on display
