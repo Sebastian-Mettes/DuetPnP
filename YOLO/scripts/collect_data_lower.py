@@ -170,7 +170,10 @@ def pick_component(printer: Printer, vision_upper: VisionTools, camera_config_up
         printer.control_led(2, False)
         return False
     
-    print(f"  Component centered at X{centered_pos['X']:.2f}, Y{centered_pos['Y']:.2f}")
+    # Save the component location (where camera found it)
+    component_x = centered_pos['X']
+    component_y = centered_pos['Y']
+    print(f"  Component found at X{component_x:.2f}, Y{component_y:.2f}")
     
     # Turn off camera LED
     printer.control_led(2, False)
@@ -178,10 +181,18 @@ def pick_component(printer: Printer, vision_upper: VisionTools, camera_config_up
     # Switch to PnP tool (T2) - use fast since we're on T3
     printer.select_tool(2, fast=True)
     
+    # Move to safe height first
+    printer.linear_move(z=50, f=6000)
+    printer.wait_for_idle()
+    
+    # Move to component location (where camera found it)
+    printer.linear_move(x=component_x, y=component_y, f=6000)
+    printer.wait_for_idle()
+    
     # Turn on vacuum before lowering
     printer.control_vacuum(True)
     
-    # Lower to pickup height (we're already at the right X/Y from centering)
+    # Lower to pickup height
     printer.linear_move(z=feeder_z, f=3000)
     printer.wait_for_idle()
     time.sleep(0.2)  # Let vacuum grip
