@@ -35,3 +35,11 @@ ENV/
 # Project specific
 vision_params.json
 *.log
+
+# YOLO training data and models (too large for git)
+# Backup these folders separately (Google Drive, etc.)
+YOLO/data/images/
+YOLO/data/labels/
+YOLO/data/train/
+YOLO/data/val/
+YOLO/models/*/
