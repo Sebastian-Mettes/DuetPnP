@@ -31,6 +31,8 @@ except ImportError:
     print("Run: pip install ultralytics")
     sys.exit(1)
 
+from inference_utils import normalize_angle_to_expected
+
 
 def load_yolo_obb_label(label_path: Path, img_width: int, img_height: int) -> list:
     """
@@ -201,11 +203,20 @@ def main():
         info_y += 25
         
         if pred_angle is not None and gt_angle is not None:
-            angle_diff = abs(pred_angle - gt_angle)
+            # Normalize predicted angle to be within ±45° of ground truth
+            # (handles 180° symmetry of components)
+            normalized_pred = normalize_angle_to_expected(pred_angle, gt_angle, tolerance=45.0)
+            
+            # Calculate angle difference after normalization
+            angle_diff = abs(normalized_pred - gt_angle)
             if angle_diff > 180:
                 angle_diff = 360 - angle_diff
-            cv2.putText(display, f"Pred angle: {pred_angle:.1f}° | GT angle: {gt_angle:.1f}° | Diff: {angle_diff:.1f}°", 
+            
+            cv2.putText(display, f"Raw pred: {pred_angle:.1f}° | Normalized: {normalized_pred:.1f}° | GT: {gt_angle:.1f}°", 
                        (10, info_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
+            info_y += 25
+            cv2.putText(display, f"Angle diff (normalized): {angle_diff:.1f}°", 
+                       (10, info_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
             info_y += 25
         
         if pred_conf is not None:
