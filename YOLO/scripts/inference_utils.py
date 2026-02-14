@@ -21,8 +21,9 @@ def normalize_angle_to_expected(predicted_angle: float, expected_angle: float,
     """
     Normalize predicted angle to be within ±tolerance of expected angle.
     
-    For symmetric components (180° symmetry), the model might return an angle
-    that's 180° off. This function picks the angle closest to expected.
+    For rectangular components, YOLO might use a different edge as reference,
+    causing 90° or 180° offsets. This function picks the angle closest to expected
+    by trying all 90° rotations.
     
     Args:
         predicted_angle: Angle from YOLO prediction (degrees)
@@ -32,11 +33,15 @@ def normalize_angle_to_expected(predicted_angle: float, expected_angle: float,
     Returns:
         Normalized angle within ±tolerance of expected_angle
     """
-    # Candidate angles: predicted, predicted+180, predicted-180
+    # Candidate angles: try all 90° rotations
     candidates = [
         predicted_angle,
+        predicted_angle + 90,
+        predicted_angle - 90,
         predicted_angle + 180,
         predicted_angle - 180,
+        predicted_angle + 270,
+        predicted_angle - 270,
     ]
     
     # Find the candidate closest to expected
@@ -169,22 +174,27 @@ class YOLOComponentDetector:
 
 # Example usage and testing
 if __name__ == '__main__':
-    print("Testing angle normalization:")
+    print("Testing angle normalization (handles 90° and 180° offsets):\n")
     
     test_cases = [
         (0, 0),      # Predicted 0, expected 0 → should be 0
-        (180, 0),    # Predicted 180, expected 0 → should be 0 (symmetric)
+        (90, 0),     # Predicted 90, expected 0 → should be 0 (90° offset)
+        (-90, 0),    # Predicted -90, expected 0 → should be 0 (90° offset)
+        (180, 0),    # Predicted 180, expected 0 → should be 0 (180° symmetric)
         (-180, 0),   # Predicted -180, expected 0 → should be 0
-        (170, 0),    # Predicted 170, expected 0 → should be -10
-        (-170, 0),   # Predicted -170, expected 0 → should be 10
+        (85, 0),     # Predicted 85, expected 0 → should be -5 (close to 90° offset)
+        (-85, 0),    # Predicted -85, expected 0 → should be 5 (close to -90° offset)
+        (170, 0),    # Predicted 170, expected 0 → should be -10 (close to 180°)
         (45, 30),    # Predicted 45, expected 30 → should be 45
-        (135, 30),   # Predicted 135, expected 30 → should be -45
+        (135, 30),   # Predicted 135, expected 30 → should be 45 (90° offset from 30)
     ]
     
+    print(f"{'Predicted':>10} | {'Expected':>8} | {'Normalized':>10} | {'Diff':>6}")
+    print("-" * 45)
     for predicted, expected in test_cases:
         result = normalize_angle_to_expected(predicted, expected)
         diff = abs(result - expected)
         if diff > 180:
             diff = 360 - diff
-        print(f"  Predicted: {predicted:4d}°, Expected: {expected:3d}° → Normalized: {result:6.1f}° (diff: {diff:.1f}°)")
+        print(f"{predicted:>10}° | {expected:>8}° | {result:>10.1f}° | {diff:>5.1f}°")
 
