@@ -266,6 +266,47 @@ scp YOLO/models/<run_name>/weights/best.onnx pi@<pi-ip>:~/DuetPnP/YOLO/models/
 pip install ultralytics onnxruntime
 ```
 
+## Using YOLO in PnP Operations
+
+Once trained and deployed, YOLO replaces template matching in the PnP workflow:
+
+### Automatic Detection
+
+If `YOLO/models/best.pt` exists, it will be used automatically:
+
+```bash
+python run_pnp_task.py
+# Output: "Using default YOLO model: YOLO/models/best.pt"
+```
+
+### Manual Model Selection
+
+Specify a different model:
+
+```bash
+python run_pnp_task.py --yolo YOLO/models/my_model.pt
+```
+
+### Disable YOLO
+
+Force template matching:
+
+```bash
+python run_pnp_task.py --no-yolo
+```
+
+### Speed Improvements
+
+Expected improvements with YOLO:
+- **Template matching**: ~500-1000ms per detection
+- **YOLO (320x320)**: ~50-100ms per detection
+- **Overall per-component**: Reduced from ~65s to ~35-40s
+
+### Angle Normalization
+
+YOLO-OBB returns angles that may differ by 90° or 180° for symmetric components.
+The system automatically normalizes angles to within ±45° of the expected orientation.
+
 ## Hardware Requirements
 
 - **Training**: NVIDIA GPU (P3200/RTX Titan recommended)

@@ -6,11 +6,13 @@ This is the main entry point for running pick-and-place operations.
 It loads configurations, initializes hardware, and executes the PnP workflow.
 
 Usage:
-    python run_pnp_task.py [placement_config.json] [--resume] [--offsets X Y]
+    python run_pnp_task.py [placement_config.json] [--resume] [--offsets X Y] [--yolo MODEL]
 
 Options:
     --resume          Resume from last checkpoint after error/interruption
     --offsets X Y     Apply X,Y offset (in mm) to all placements (e.g., --offsets -0.2 -0.15)
+    --yolo MODEL      Use YOLO model for faster detection (e.g., --yolo YOLO/models/best.pt)
+    --no-yolo         Disable YOLO even if model exists (use template matching)
 """
 
 import sys
@@ -34,6 +36,10 @@ def main():
                         help='Resume from last checkpoint after error/interruption')
     parser.add_argument('--offsets', nargs=2, type=float, metavar=('X', 'Y'), default=None,
                         help='Apply X,Y offset in mm to all placements (e.g., --offsets -0.2 -0.15)')
+    parser.add_argument('--yolo', type=str, metavar='MODEL', default=None,
+                        help='Path to YOLO model for faster detection (e.g., YOLO/models/best.pt)')
+    parser.add_argument('--no-yolo', action='store_true',
+                        help='Disable YOLO detection (use template matching)')
 
     args = parser.parse_args()
 
@@ -46,6 +52,17 @@ def main():
         x_offset, y_offset = args.offsets
         placement_offset = {'x': x_offset, 'y': y_offset}
         print(f"Placement offset: X{x_offset:+.3f}, Y{y_offset:+.3f} mm")
+
+    # Determine YOLO model path
+    yolo_model_path = args.yolo
+    use_yolo = not args.no_yolo
+    
+    # Check for default YOLO model if not specified
+    if yolo_model_path is None and use_yolo:
+        default_model = 'YOLO/models/best.pt'
+        if os.path.exists(default_model):
+            yolo_model_path = default_model
+            print(f"Using default YOLO model: {yolo_model_path}")
 
     print("="*60)
     print("DuetPnP Pick-and-Place System")
@@ -87,7 +104,9 @@ def main():
             feeder=feeder,
             config_manager=config_manager,
             camera_configs=camera_configs,
-            placement_offset=placement_offset
+            placement_offset=placement_offset,
+            yolo_model_path=yolo_model_path,
+            use_yolo=use_yolo
         )
         print("✓ Workflow initialized\n")
 

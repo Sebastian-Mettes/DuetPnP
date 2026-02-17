@@ -18,6 +18,20 @@ from typing import Tuple, List, Optional, Dict, Callable
 from collections import defaultdict
 import json
 import os
+import sys
+
+# Try to import YOLO (optional dependency)
+try:
+    from ultralytics import YOLO
+    YOLO_AVAILABLE = True
+except ImportError:
+    YOLO_AVAILABLE = False
+    YOLO = None
+
+# Add YOLO scripts to path for inference utilities
+_yolo_scripts_path = os.path.join(os.path.dirname(__file__), 'YOLO', 'scripts')
+if os.path.exists(_yolo_scripts_path) and _yolo_scripts_path not in sys.path:
+    sys.path.insert(0, _yolo_scripts_path)
 
 
 class CameraConfig:
@@ -226,6 +240,12 @@ class VisionTools:
         # Current frame storage
         self.frame = None
         self.is_component_detected = False
+
+        # YOLO model (lazy loaded)
+        self._yolo_model = None
+        self._yolo_model_path = None
+        self._yolo_imgsz = 320  # Default inference size for speed
+        self._yolo_conf = 0.5   # Default confidence threshold
 
     def capture_frame(self, clear_buffer: bool = False) -> Optional[np.ndarray]:
         """
@@ -451,6 +471,123 @@ class VisionTools:
         else:
             self.is_component_detected = False
             return (None, None)
+
+    def load_yolo_model(self, model_path: str, imgsz: int = 320, conf: float = 0.5):
+        """
+        Load YOLO-OBB model for component detection.
+        
+        Args:
+            model_path: Path to YOLO model (.pt or .onnx)
+            imgsz: Inference image size (320 for speed, 640 for accuracy)
+            conf: Confidence threshold (default 0.5)
+        """
+        if not YOLO_AVAILABLE:
+            raise ImportError("ultralytics not installed. Run: pip install ultralytics")
+        
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"YOLO model not found: {model_path}")
+        
+        print(f"Loading YOLO model: {model_path}")
+        self._yolo_model = YOLO(model_path)
+        self._yolo_model.overrides['conf'] = conf
+        self._yolo_model.overrides['imgsz'] = imgsz
+        self._yolo_model_path = model_path
+        self._yolo_imgsz = imgsz
+        self._yolo_conf = conf
+        print(f"YOLO model loaded (imgsz={imgsz}, conf={conf})")
+
+    def find_component_yolo(self, expected_angle: float = 0.0) -> Tuple[Optional[Tuple[int, int]], Optional[float]]:
+        """
+        Find component in camera frame using YOLO-OBB model.
+        
+        Much faster than template matching (~50-100ms vs 500ms+).
+        Returns same format as find_component() for drop-in replacement.
+        
+        Args:
+            expected_angle: Expected component angle for normalization.
+                           Used to handle 90°/180° ambiguity in symmetric components.
+        
+        Returns:
+            ((center_x, center_y), angle) if found, (None, None) otherwise
+        """
+        if self._yolo_model is None:
+            print("YOLO model not loaded. Call load_yolo_model() first.")
+            return (None, None)
+        
+        if self.frame is None:
+            print("No frame captured. Call capture_frame() first.")
+            return (None, None)
+        
+        # Run inference
+        results = self._yolo_model.predict(self.frame, verbose=False)
+        
+        # Check for detections
+        if results is None or len(results) == 0:
+            self.is_component_detected = False
+            return (None, None)
+        
+        if results[0].obb is None or len(results[0].obb.xyxyxyxy) == 0:
+            self.is_component_detected = False
+            return (None, None)
+        
+        obb = results[0].obb
+        
+        # Get the highest confidence detection
+        best_idx = int(obb.conf.argmax())
+        corners = obb.xyxyxyxy[best_idx].cpu().numpy()
+        
+        # Calculate center
+        center_x = float(corners[:, 0].mean())
+        center_y = float(corners[:, 1].mean())
+        
+        # Calculate raw angle from first edge
+        dx = corners[1][0] - corners[0][0]
+        dy = corners[1][1] - corners[0][1]
+        raw_angle = float(np.degrees(np.arctan2(dy, dx)))
+        
+        # Normalize angle to be within ±45° of expected
+        # Handles 90°/180° ambiguity for symmetric components
+        normalized_angle = self._normalize_angle_to_expected(raw_angle, expected_angle)
+        
+        self.is_component_detected = True
+        return ((int(center_x), int(center_y)), normalized_angle)
+
+    def _normalize_angle_to_expected(self, predicted_angle: float, expected_angle: float, 
+                                      tolerance: float = 45.0) -> float:
+        """
+        Normalize predicted angle to be within ±tolerance of expected angle.
+        
+        For rectangular components, YOLO might use a different edge as reference,
+        causing 90° or 180° offsets. This picks the angle closest to expected.
+        """
+        # Try all 90° rotations
+        candidates = [
+            predicted_angle,
+            predicted_angle + 90,
+            predicted_angle - 90,
+            predicted_angle + 180,
+            predicted_angle - 180,
+            predicted_angle + 270,
+            predicted_angle - 270,
+        ]
+        
+        best_angle = predicted_angle
+        best_diff = float('inf')
+        
+        for candidate in candidates:
+            # Normalize to -180 to 180 range
+            normalized = ((candidate + 180) % 360) - 180
+            
+            # Calculate difference from expected
+            diff = abs(normalized - expected_angle)
+            if diff > 180:
+                diff = 360 - diff
+            
+            if diff < best_diff:
+                best_diff = diff
+                best_angle = normalized
+        
+        return best_angle
 
     def find_tool_position(self, downsample: bool = True) -> Optional[Tuple[int, int]]:
         """

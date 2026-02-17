@@ -118,7 +118,8 @@ class PnPWorkflow:
     """
     
     def __init__(self, printer: Printer, feeder: Feeder, config_manager: ConfigManager,
-                 camera_configs: Dict[int, CameraConfig], placement_offset: Optional[Dict[str, float]] = None):
+                 camera_configs: Dict[int, CameraConfig], placement_offset: Optional[Dict[str, float]] = None,
+                 yolo_model_path: Optional[str] = None, use_yolo: bool = True):
         """
         Initialize PnP workflow.
 
@@ -128,6 +129,8 @@ class PnPWorkflow:
             config_manager: ConfigManager instance
             camera_configs: Dictionary mapping camera numbers to CameraConfig instances
             placement_offset: Optional offset dict with 'x' and 'y' keys (in mm) to apply to all placements
+            yolo_model_path: Optional path to YOLO-OBB model for faster detection
+            use_yolo: If True and model available, use YOLO instead of template matching
         """
         self.printer = printer
         self.feeder = feeder
@@ -140,6 +143,22 @@ class PnPWorkflow:
                                        camera_config=camera_configs[2])
         self.vision_lower = VisionTools(0, target='tool',
                                        camera_config=camera_configs[0])
+
+        # YOLO detection settings
+        self.use_yolo = use_yolo and yolo_model_path is not None
+        if yolo_model_path and os.path.exists(yolo_model_path):
+            try:
+                self.vision_upper.load_yolo_model(yolo_model_path, imgsz=320, conf=0.5)
+                self.vision_lower.load_yolo_model(yolo_model_path, imgsz=320, conf=0.5)
+                print(f"✓ YOLO detection enabled (model: {yolo_model_path})")
+            except Exception as e:
+                print(f"⚠️ Failed to load YOLO model: {e}")
+                print("  Falling back to template matching")
+                self.use_yolo = False
+        elif yolo_model_path:
+            print(f"⚠️ YOLO model not found: {yolo_model_path}")
+            print("  Using template matching instead")
+            self.use_yolo = False
 
         # Centering parameters
         self.TOLERANCE = 0
@@ -552,8 +571,11 @@ class PnPWorkflow:
             if frame is None:
                 return None, None, None
 
-            # Find component in the captured frame
-            pos, angle = self.vision_upper.find_component(template_path)
+            # Find component using YOLO or template matching
+            if self.use_yolo:
+                pos, angle = self.vision_upper.find_component_yolo(expected_angle=0)
+            else:
+                pos, angle = self.vision_upper.find_component(template_path)
             return pos, angle, frame
 
         success, final_pos = center_target_in_camera(
@@ -625,8 +647,11 @@ class PnPWorkflow:
             frame = self.vision_lower.capture_frame()
 
             if frame is not None:
-                # Try to find component
-                detection_result = self.vision_lower.find_component(lower_template_path)
+                # Try to find component using YOLO or template matching
+                if self.use_yolo:
+                    detection_result = self.vision_lower.find_component_yolo(expected_angle=0)
+                else:
+                    detection_result = self.vision_lower.find_component(lower_template_path)
                 pos, angle = detection_result
 
                 # Create display with detection info
@@ -742,13 +767,18 @@ class PnPWorkflow:
             if frame is None:
                 return None, None, None
 
-            # Find component at the desired angle only (no angular search)
-            # This is much faster than searching -15 to +16 degrees
-            result = self.vision_lower.find_component(
-                lower_template_path,
-                angle=desired_angle,  # Expected angle - component should be at this orientation
-                exact_angle=True  # Only check at this specific angle for speed
-            )
+            # Find component using YOLO or template matching
+            if self.use_yolo:
+                # YOLO is fast enough to detect at any angle
+                result = self.vision_lower.find_component_yolo(expected_angle=desired_angle)
+            else:
+                # Find component at the desired angle only (no angular search)
+                # This is much faster than searching -15 to +16 degrees
+                result = self.vision_lower.find_component(
+                    lower_template_path,
+                    angle=desired_angle,  # Expected angle - component should be at this orientation
+                    exact_angle=True  # Only check at this specific angle for speed
+                )
 
             if result[0] is not None:
                 pos, angle = result
