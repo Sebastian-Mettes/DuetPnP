@@ -28,10 +28,26 @@ except ImportError:
     YOLO_AVAILABLE = False
     YOLO = None
 
+# Try to import ONNX Runtime (optional - lighter weight alternative)
+try:
+    import onnxruntime as ort
+    ONNX_AVAILABLE = True
+except ImportError:
+    ONNX_AVAILABLE = False
+    ort = None
+
 # Add YOLO scripts to path for inference utilities
 _yolo_scripts_path = os.path.join(os.path.dirname(__file__), 'YOLO', 'scripts')
 if os.path.exists(_yolo_scripts_path) and _yolo_scripts_path not in sys.path:
     sys.path.insert(0, _yolo_scripts_path)
+
+# Try to import our inference utilities (for ONNXComponentDetector)
+try:
+    from inference_utils import ONNXComponentDetector
+    ONNX_DETECTOR_AVAILABLE = True
+except ImportError:
+    ONNXComponentDetector = None
+    ONNX_DETECTOR_AVAILABLE = False
 
 
 class CameraConfig:
@@ -246,6 +262,8 @@ class VisionTools:
         self._yolo_model_path = None
         self._yolo_imgsz = 320  # Default inference size for speed
         self._yolo_conf = 0.5   # Default confidence threshold
+        self._use_onnx_runtime = False  # Use ONNX Runtime if available
+        self._onnx_detector = None  # ONNXComponentDetector instance
 
     def capture_frame(self, clear_buffer: bool = False) -> Optional[np.ndarray]:
         """
@@ -472,7 +490,8 @@ class VisionTools:
             self.is_component_detected = False
             return (None, None)
 
-    def load_yolo_model(self, model_path: str, imgsz: int = 320, conf: float = 0.5):
+    def load_yolo_model(self, model_path: str, imgsz: int = 320, conf: float = 0.5,
+                        use_onnx_runtime: bool = None):
         """
         Load YOLO-OBB model for component detection.
         
@@ -480,21 +499,57 @@ class VisionTools:
             model_path: Path to YOLO model (.pt or .onnx)
             imgsz: Inference image size (320 for speed, 640 for accuracy)
             conf: Confidence threshold (default 0.5)
+            use_onnx_runtime: If True, use ONNX Runtime (faster, requires .onnx model)
+                             If False, use ultralytics
+                             If None, auto-select based on availability
         """
-        if not YOLO_AVAILABLE:
-            raise ImportError("ultralytics not installed. Run: pip install ultralytics")
-        
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"YOLO model not found: {model_path}")
         
-        print(f"Loading YOLO model: {model_path}")
-        self._yolo_model = YOLO(model_path)
-        self._yolo_model.overrides['conf'] = conf
-        self._yolo_model.overrides['imgsz'] = imgsz
+        model_ext = os.path.splitext(model_path)[1].lower()
+        
+        # Auto-select backend
+        if use_onnx_runtime is None:
+            # Prefer ONNX Runtime for .onnx models if available
+            if model_ext == '.onnx' and ONNX_DETECTOR_AVAILABLE:
+                use_onnx_runtime = True
+            elif YOLO_AVAILABLE:
+                use_onnx_runtime = False
+            elif ONNX_DETECTOR_AVAILABLE and model_ext == '.onnx':
+                use_onnx_runtime = True
+            else:
+                raise ImportError(
+                    "No YOLO backend available. Install one of:\n"
+                    "  pip install ultralytics  (full featured)\n"
+                    "  pip install onnxruntime  (lightweight, .onnx only)"
+                )
+        
         self._yolo_model_path = model_path
         self._yolo_imgsz = imgsz
         self._yolo_conf = conf
-        print(f"YOLO model loaded (imgsz={imgsz}, conf={conf})")
+        self._use_onnx_runtime = use_onnx_runtime
+        
+        print(f"Loading YOLO model: {model_path}")
+        print(f"Backend: {'ONNX Runtime' if use_onnx_runtime else 'ultralytics'}")
+        
+        if use_onnx_runtime:
+            if not ONNX_DETECTOR_AVAILABLE:
+                raise ImportError("ONNX Runtime detector not available. Check onnxruntime installation.")
+            if model_ext != '.onnx':
+                raise ValueError("ONNX Runtime requires .onnx model file")
+            
+            self._onnx_detector = ONNXComponentDetector(model_path, imgsz, conf)
+            self._yolo_model = None
+            print(f"YOLO model loaded via ONNX Runtime (imgsz={imgsz}, conf={conf})")
+        else:
+            if not YOLO_AVAILABLE:
+                raise ImportError("ultralytics not installed. Run: pip install ultralytics")
+            
+            self._yolo_model = YOLO(model_path)
+            self._yolo_model.overrides['conf'] = conf
+            self._yolo_model.overrides['imgsz'] = imgsz
+            self._onnx_detector = None
+            print(f"YOLO model loaded via ultralytics (imgsz={imgsz}, conf={conf})")
 
     def find_component_yolo(self, expected_angle: float = 0.0) -> Tuple[Optional[Tuple[int, int]], Optional[float]]:
         """
@@ -503,6 +558,8 @@ class VisionTools:
         Much faster than template matching (~50-100ms vs 500ms+).
         Returns same format as find_component() for drop-in replacement.
         
+        Supports both ultralytics and ONNX Runtime backends.
+        
         Args:
             expected_angle: Expected component angle for normalization.
                            Used to handle 90°/180° ambiguity in symmetric components.
@@ -510,12 +567,28 @@ class VisionTools:
         Returns:
             ((center_x, center_y), angle) if found, (None, None) otherwise
         """
-        if self._yolo_model is None:
+        if self._yolo_model is None and self._onnx_detector is None:
             print("YOLO model not loaded. Call load_yolo_model() first.")
             return (None, None)
         
         if self.frame is None:
             print("No frame captured. Call capture_frame() first.")
+            return (None, None)
+        
+        # Use ONNX Runtime backend if available
+        if self._use_onnx_runtime and self._onnx_detector is not None:
+            result = self._onnx_detector.detect(self.frame, expected_angle)
+            
+            if result is None:
+                self.is_component_detected = False
+                return (None, None)
+            
+            self.is_component_detected = True
+            return ((int(result['center_x']), int(result['center_y'])), result['angle'])
+        
+        # Fallback to ultralytics
+        if self._yolo_model is None:
+            print("No YOLO model available.")
             return (None, None)
         
         # Run inference

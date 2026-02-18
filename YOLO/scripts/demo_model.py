@@ -7,8 +7,13 @@ Shows each image with:
 - Blue box: Ground truth label
 - Confidence score and detected angle
 
+Supports both ultralytics and ONNX Runtime backends.
+
 Usage:
     python demo_model.py --model ../models/component_obb_*/weights/best.pt --data ../data/val/
+
+    # Force ONNX Runtime (faster)
+    python demo_model.py --model ../models/best.onnx --data ../data/val/ --onnx-runtime
 
 Controls:
     Space/Enter - Next image
@@ -24,14 +29,32 @@ import numpy as np
 import argparse
 from pathlib import Path
 
+# Try to import ultralytics (optional)
+ULTRALYTICS_AVAILABLE = False
+YOLO = None
 try:
     from ultralytics import YOLO
+    ULTRALYTICS_AVAILABLE = True
 except ImportError:
-    print("Error: ultralytics not installed")
-    print("Run: pip install ultralytics")
+    pass
+
+# Try to import ONNX Runtime (optional)
+ONNX_AVAILABLE = False
+try:
+    import onnxruntime as ort
+    ONNX_AVAILABLE = True
+except ImportError:
+    pass
+
+# Check that at least one backend is available
+if not ULTRALYTICS_AVAILABLE and not ONNX_AVAILABLE:
+    print("Error: No inference backend available")
+    print("Install one of:")
+    print("  pip install ultralytics  (full featured)")
+    print("  pip install onnxruntime  (lightweight)")
     sys.exit(1)
 
-from inference_utils import normalize_angle_to_expected
+from inference_utils import normalize_angle_to_expected, ONNXComponentDetector
 
 
 def load_yolo_obb_label(label_path: Path, img_width: int, img_height: int) -> list:
@@ -95,6 +118,8 @@ def main():
     parser.add_argument('--conf', type=float, default=0.5, help='Confidence threshold')
     parser.add_argument('--imgsz', type=int, default=640, help='Inference image size')
     parser.add_argument('--save-dir', help='Directory to save annotated images')
+    parser.add_argument('--onnx-runtime', action='store_true',
+                        help='Force ONNX Runtime backend (faster, requires .onnx model)')
     args = parser.parse_args()
     
     # Resolve paths
@@ -126,11 +151,36 @@ def main():
     
     print(f"Found {len(image_files)} images")
     
+    # Select backend
+    use_onnx_runtime = args.onnx_runtime
+    model_ext = model_path.suffix.lower()
+    
+    # Auto-select ONNX Runtime if ultralytics not available
+    if model_ext == '.onnx' and not ULTRALYTICS_AVAILABLE:
+        use_onnx_runtime = True
+    
     # Load model
     print(f"Loading model: {model_path}")
-    model = YOLO(str(model_path))
-    model.overrides['conf'] = args.conf
-    model.overrides['imgsz'] = args.imgsz
+    print(f"Backend: {'ONNX Runtime' if use_onnx_runtime else 'ultralytics'}")
+    
+    if use_onnx_runtime:
+        if not ONNX_AVAILABLE:
+            print("Error: ONNX Runtime not available. Install: pip install onnxruntime")
+            return 1
+        if model_ext != '.onnx':
+            print("Error: ONNX Runtime requires .onnx model file")
+            return 1
+        
+        detector = ONNXComponentDetector(str(model_path), args.imgsz, args.conf)
+        model = None
+    else:
+        if not ULTRALYTICS_AVAILABLE:
+            print("Error: ultralytics not available. Install: pip install ultralytics")
+            return 1
+        model = YOLO(str(model_path))
+        model.overrides['conf'] = args.conf
+        model.overrides['imgsz'] = args.imgsz
+        detector = None
     
     # Create save directory if specified
     if args.save_dir:
@@ -165,8 +215,13 @@ def main():
         img_height, img_width = frame.shape[:2]
         display = frame.copy()
         
-        # Run inference
-        results = model.predict(frame, verbose=False)
+        # Run inference (different backends)
+        if detector is not None:
+            result = detector.detect(frame)
+            results = None
+        else:
+            results = model.predict(frame, verbose=False)
+            result = None
         
         # Draw ground truth (blue)
         gt_labels = load_yolo_obb_label(label_path, img_width, img_height)
@@ -180,7 +235,15 @@ def main():
         pred_conf = None
         num_detections = 0
         
-        if results and len(results) > 0 and results[0].obb is not None:
+        # Handle ONNX Runtime result (dict format)
+        if detector is not None and result is not None:
+            num_detections = 1
+            corners = result['corners']
+            pred_conf = result['confidence']
+            pred_angle = draw_obb(display, corners, color=(0, 255, 0), thickness=2,
+                                 label=f"{pred_conf:.2f}")
+        # Handle ultralytics result
+        elif results and len(results) > 0 and results[0].obb is not None:
             obb = results[0].obb
             num_detections = len(obb.xyxyxyxy)
             
