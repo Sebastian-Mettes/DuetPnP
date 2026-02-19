@@ -1,10 +1,8 @@
 {
   "description": "PnP workflow checkpoint for resume capability",
   "version": "1.0",
-  "last_updated": "2026-02-18T19:16:25.977510",
-  "status": "paused",
-  "config_file": "placement_config_inkA.json",
-  "session_id": "20260218_191604",
+  "last_updated": null,
+  "status": "idle",
   "current_component_index": 0,
   "current_placement_index": 0,
   "completed_placements": [],

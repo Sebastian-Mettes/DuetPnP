@@ -161,8 +161,8 @@ class PnPWorkflow:
             self.use_yolo = False
 
         # Centering parameters
-        self.TOLERANCE = 0
-        self.MAX_ITERATIONS = 20
+        self.TOLERANCE = 1
+        self.MAX_ITERATIONS = 10
 
         # Checkpoint state
         self.checkpoint_file = "config/pnp_checkpoint.json"
@@ -489,7 +489,7 @@ class PnPWorkflow:
         current_tool = self.printer.get_current_tool()
         use_fast = current_tool in [2, 3]
         self.printer.select_tool(2, fast=use_fast)
-        self.printer.wait_for_idle()
+        #self.printer.wait_for_idle()
 
         # Move to safe height above button
         self.printer.linear_move(z=150)
@@ -605,7 +605,7 @@ class PnPWorkflow:
 
         #self.printer.linear_move(z=150,f=6000) #Lift to safe height
         self.printer.linear_move(x=pickup_pos['X'], y=pickup_pos['Y'],f=6000)
-        self.printer.wait_for_idle()
+        #self.printer.wait_for_idle()
         self.printer.control_solenoid(True)
         self.printer.control_vacuum(True)
         #time.sleep(0.25) no longer necessary
@@ -614,7 +614,7 @@ class PnPWorkflow:
         self.printer.wait_for_idle()
         #time.sleep(0.1) #Ensure Part is picked up.
         self.printer.linear_move(z=50, f=12000) #Lift to safe height
-        self.printer.wait_for_idle()
+        #self.printer.wait_for_idle()
         
         # 3. Determine orientation with lower camera
         print("  3. Checking component orientation...")
@@ -742,7 +742,7 @@ class PnPWorkflow:
             # CRITICAL: Clear camera buffer after rotation
             # The camera buffer contains old frames from before rotation
             print("  Clearing camera buffer after rotation...")
-            time.sleep(0.1)  # Allow mechanical settling
+            #time.sleep(0.1)  # Allow mechanical settling
             for _ in range(5):  # Clear 5 buffered frames
                 self.vision_lower.capture_frame()
             time.sleep(0.1)  # One more delay for fresh frame
@@ -839,10 +839,9 @@ class PnPWorkflow:
         self.printer.linear_move(x=final_x, y=final_y, f=300)
         self.printer.linear_move(z=target_pos['z']+5,f=6000)
         self.printer.linear_move(z=target_pos['z'])
-        self.printer.wait_for_idle()  # CRITICAL: Wait for Z to reach placement height
         self.printer.control_vacuum(False)
         self.printer.control_solenoid(False)  # Release        
-        time.sleep(0.2)
+        time.sleep(0.1)
         self.printer.linear_move(z=150,f=6000)
 
         print("  ✓ Component placed!")
