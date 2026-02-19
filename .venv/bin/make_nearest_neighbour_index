@@ -1,0 +1,6 @@
+#!/home/admin/code/DuetPnP/.venv/bin/python3
+import sys
+from tensorflow_hub.tools.make_nearest_neighbour_index.make_nearest_neighbour_index import main
+if __name__ == '__main__':
+    sys.argv[0] = sys.argv[0].removesuffix('.exe')
+    sys.exit(main())
