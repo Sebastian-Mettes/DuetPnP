@@ -265,6 +265,13 @@ class VisionTools:
         self._use_onnx_runtime = False  # Use ONNX Runtime if available
         self._onnx_detector = None  # ONNXComponentDetector instance
 
+        # Training data capture settings (for ML model improvement)
+        self._training_capture_enabled = False
+        self._training_capture_dir = None
+        self._training_capture_count = 0
+        self._training_capture_session_id = None
+        self._training_capture_min_conf = 0.5  # Minimum confidence to save
+
     def capture_frame(self, clear_buffer: bool = False) -> Optional[np.ndarray]:
         """
         Capture a single frame from camera.
@@ -583,6 +590,14 @@ class VisionTools:
                 self.is_component_detected = False
                 return (None, None)
             
+            # Save training sample if enabled
+            if self._training_capture_enabled and 'corners' in result:
+                self._save_training_sample(
+                    self.frame, 
+                    result['corners'], 
+                    result.get('confidence', 1.0)
+                )
+            
             self.is_component_detected = True
             return ((int(result['center_x']), int(result['center_y'])), result['angle'])
         
@@ -621,6 +636,11 @@ class VisionTools:
         # Normalize angle to be within ±45° of expected
         # Handles 90°/180° ambiguity for symmetric components
         normalized_angle = self._normalize_angle_to_expected(raw_angle, expected_angle)
+        
+        # Save training sample if enabled
+        if self._training_capture_enabled:
+            confidence = float(obb.conf[best_idx].cpu().numpy())
+            self._save_training_sample(self.frame, corners, confidence)
         
         self.is_component_detected = True
         return ((int(center_x), int(center_y)), normalized_angle)
@@ -661,6 +681,102 @@ class VisionTools:
                 best_angle = normalized
         
         return best_angle
+
+    def enable_training_capture(self, output_dir: str = None, min_confidence: float = 0.5,
+                                  session_id: str = None):
+        """
+        Enable automatic saving of successful detections for ML training.
+        
+        Saves images and YOLO-OBB format labels when components are detected
+        during normal operation. This creates passive training data collection.
+        
+        Args:
+            output_dir: Directory to save images/labels (default: YOLO/data)
+            min_confidence: Minimum detection confidence to save (default: 0.5)
+            session_id: Session identifier for filenames (default: auto-generated)
+        """
+        from datetime import datetime
+        
+        if output_dir is None:
+            # Default to YOLO data directory relative to this file
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            output_dir = os.path.join(base_dir, 'YOLO', 'data')
+        
+        # Create images and labels directories
+        images_dir = os.path.join(output_dir, 'images')
+        labels_dir = os.path.join(output_dir, 'labels')
+        os.makedirs(images_dir, exist_ok=True)
+        os.makedirs(labels_dir, exist_ok=True)
+        
+        self._training_capture_enabled = True
+        self._training_capture_dir = output_dir
+        self._training_capture_min_conf = min_confidence
+        self._training_capture_count = 0
+        self._training_capture_session_id = session_id or datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        print(f"Training capture enabled: {output_dir}")
+        print(f"  Session: {self._training_capture_session_id}, min_conf: {min_confidence}")
+
+    def disable_training_capture(self):
+        """Disable automatic training data capture."""
+        if self._training_capture_enabled:
+            print(f"Training capture disabled. Saved {self._training_capture_count} samples.")
+        self._training_capture_enabled = False
+
+    def _save_training_sample(self, frame: np.ndarray, corners: np.ndarray, 
+                               confidence: float):
+        """
+        Save a training sample (image + YOLO-OBB label).
+        
+        Args:
+            frame: BGR image (numpy array)
+            corners: OBB corners array shape (4, 2) with pixel coordinates
+            confidence: Detection confidence (for filtering)
+        """
+        if not self._training_capture_enabled:
+            return
+        
+        if confidence < self._training_capture_min_conf:
+            return
+        
+        if frame is None or corners is None:
+            return
+        
+        # Get image dimensions
+        img_height, img_width = frame.shape[:2]
+        
+        # Generate filename
+        filename = f"{self._training_capture_session_id}_{self._training_capture_count:04d}"
+        images_dir = os.path.join(self._training_capture_dir, 'images')
+        labels_dir = os.path.join(self._training_capture_dir, 'labels')
+        
+        img_path = os.path.join(images_dir, f"{filename}.jpg")
+        label_path = os.path.join(labels_dir, f"{filename}.txt")
+        
+        # Save image
+        cv2.imwrite(img_path, frame)
+        
+        # Convert corners to YOLO-OBB format (normalized 0-1)
+        # Format: class_id x1 y1 x2 y2 x3 y3 x4 y4
+        normalized_coords = []
+        for i in range(4):
+            nx = float(corners[i, 0]) / img_width
+            ny = float(corners[i, 1]) / img_height
+            # Clamp to valid range
+            nx = max(0.0, min(1.0, nx))
+            ny = max(0.0, min(1.0, ny))
+            normalized_coords.extend([nx, ny])
+        
+        label_str = f"0 {' '.join(f'{v:.6f}' for v in normalized_coords)}"
+        
+        with open(label_path, 'w') as f:
+            f.write(label_str + '\n')
+        
+        self._training_capture_count += 1
+        
+        # Periodic status update
+        if self._training_capture_count % 50 == 0:
+            print(f"  [Training] Saved {self._training_capture_count} samples")
 
     def find_tool_position(self, downsample: bool = True) -> Optional[Tuple[int, int]]:
         """

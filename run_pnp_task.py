@@ -9,10 +9,11 @@ Usage:
     python run_pnp_task.py [placement_config.json] [--resume] [--offsets X Y] [--yolo MODEL]
 
 Options:
-    --resume          Resume from last checkpoint after error/interruption
-    --offsets X Y     Apply X,Y offset (in mm) to all placements (e.g., --offsets -0.2 -0.15)
-    --yolo MODEL      Use YOLO model for faster detection (e.g., --yolo YOLO/models/best.pt)
-    --no-yolo         Disable YOLO even if model exists (use template matching)
+    --resume              Resume from last checkpoint after error/interruption
+    --offsets X Y         Apply X,Y offset (in mm) to all placements (e.g., --offsets -0.2 -0.15)
+    --yolo MODEL          Use YOLO model for faster detection (e.g., --yolo YOLO/models/best.pt)
+    --no-yolo             Disable YOLO even if model exists (use template matching)
+    --no-training-capture Disable auto-saving detections for ML training (enabled by default)
 """
 
 import sys
@@ -40,6 +41,8 @@ def main():
                         help='Path to YOLO model for faster detection (e.g., YOLO/models/best.pt)')
     parser.add_argument('--no-yolo', action='store_true',
                         help='Disable YOLO detection (use template matching)')
+    parser.add_argument('--no-training-capture', action='store_true',
+                        help='Disable auto-saving of detections for ML training')
 
     args = parser.parse_args()
 
@@ -99,6 +102,7 @@ def main():
 
         # 5. Initialize PnP workflow
         print("Initializing PnP workflow...")
+        enable_training_capture = not args.no_training_capture
         workflow = PnPWorkflow(
             printer=printer,
             feeder=feeder,
@@ -106,7 +110,8 @@ def main():
             camera_configs=camera_configs,
             placement_offset=placement_offset,
             yolo_model_path=yolo_model_path,
-            use_yolo=use_yolo
+            use_yolo=use_yolo,
+            enable_training_capture=enable_training_capture
         )
         print("✓ Workflow initialized\n")
 

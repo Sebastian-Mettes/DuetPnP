@@ -119,7 +119,8 @@ class PnPWorkflow:
     
     def __init__(self, printer: Printer, feeder: Feeder, config_manager: ConfigManager,
                  camera_configs: Dict[int, CameraConfig], placement_offset: Optional[Dict[str, float]] = None,
-                 yolo_model_path: Optional[str] = None, use_yolo: bool = True):
+                 yolo_model_path: Optional[str] = None, use_yolo: bool = True,
+                 enable_training_capture: bool = True):
         """
         Initialize PnP workflow.
 
@@ -131,6 +132,7 @@ class PnPWorkflow:
             placement_offset: Optional offset dict with 'x' and 'y' keys (in mm) to apply to all placements
             yolo_model_path: Optional path to YOLO-OBB model for faster detection
             use_yolo: If True and model available, use YOLO instead of template matching
+            enable_training_capture: If True, auto-save successful detections for ML training
         """
         self.printer = printer
         self.feeder = feeder
@@ -159,6 +161,15 @@ class PnPWorkflow:
             print(f"⚠️ YOLO model not found: {yolo_model_path}")
             print("  Using template matching instead")
             self.use_yolo = False
+
+        # Training data capture (for ML model improvement)
+        self.training_capture_enabled = enable_training_capture
+        if enable_training_capture and self.use_yolo:
+            # Use session ID for training capture filenames
+            session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+            self.vision_upper.enable_training_capture(session_id=f"upper_{session_id}")
+            self.vision_lower.enable_training_capture(session_id=f"lower_{session_id}")
+            print(f"✓ Training capture enabled (auto-saving detections for ML)")
 
         # Centering parameters
         self.TOLERANCE = 1
