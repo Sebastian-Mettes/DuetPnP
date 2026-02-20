@@ -1,0 +1,373 @@
+{
+    "components": [
+        {
+            "type": "schottky",
+            "upper_template": "./templates/schottky_f_above.png",
+            "lower_template": "./templates/schottky_f_below.png",
+            "feed_number": 2,
+            "reel_location": {
+                "x": -48.2,
+                "y": 236.1,
+                "z": 15
+            },
+            "reel_focus": 166,
+            "feeder_button_location": {
+                "x": -65.4,
+                "y": 178.2,
+                "z": 20.3
+            },
+            "placements": [
+                {
+                    "x": 116.34,
+                    "y": 121.66,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 1"
+                },
+                {
+                    "x": 115.54,
+                    "y": 121.66,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 2"
+                },
+                {
+                    "x": 122.29,
+                    "y": 131.96,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 3"
+                },
+                {
+                    "x": 121.49,
+                    "y": 131.96,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 4"
+                },
+                {
+                    "x": 128.23,
+                    "y": 142.25,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 5"
+                },
+                {
+                    "x": 127.43,
+                    "y": 142.25,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 6"
+                },
+                {
+                    "x": 134.17,
+                    "y": 152.55,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 7"
+                },
+                {
+                    "x": 133.37,
+                    "y": 152.55,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 8"
+                },
+                {
+                    "x": 140.12,
+                    "y": 162.84,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 9"
+                },
+                {
+                    "x": 139.32,
+                    "y": 162.84,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 10"
+                },
+                {
+                    "x": 146.06,
+                    "y": 173.14,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 11"
+                },
+                {
+                    "x": 145.26,
+                    "y": 173.14,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 12"
+                },
+                {
+                    "x": 134.17,
+                    "y": 131.96,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 13"
+                },
+                {
+                    "x": 133.37,
+                    "y": 131.96,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 14"
+                },
+                {
+                    "x": 140.12,
+                    "y": 142.25,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 15"
+                },
+                {
+                    "x": 139.32,
+                    "y": 142.25,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 16"
+                },
+                {
+                    "x": 146.06,
+                    "y": 152.55,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 17"
+                },
+                {
+                    "x": 145.26,
+                    "y": 152.55,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 18"
+                },
+                {
+                    "x": 152.01,
+                    "y": 162.84,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 19"
+                },
+                {
+                    "x": 151.21,
+                    "y": 162.84,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 20"
+                },
+                {
+                    "x": 157.95,
+                    "y": 173.14,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 21"
+                },
+                {
+                    "x": 157.15,
+                    "y": 173.14,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 22"
+                },
+                {
+                    "x": 116.34,
+                    "y": 142.25,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 23"
+                },
+                {
+                    "x": 115.54,
+                    "y": 142.25,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 24"
+                },
+                {
+                    "x": 122.29,
+                    "y": 152.55,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 25"
+                },
+                {
+                    "x": 121.49,
+                    "y": 152.55,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 26"
+                },
+                {
+                    "x": 128.23,
+                    "y": 162.84,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 27"
+                },
+                {
+                    "x": 127.43,
+                    "y": 162.84,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 28"
+                },
+                {
+                    "x": 134.17,
+                    "y": 173.14,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 29"
+                },
+                {
+                    "x": 133.37,
+                    "y": 173.14,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 30"
+                },
+                {
+                    "x": 140.12,
+                    "y": 183.43,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 31"
+                },
+                {
+                    "x": 139.32,
+                    "y": 183.43,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 32"
+                },
+                {
+                    "x": 116.34,
+                    "y": 162.84,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 33"
+                },
+                {
+                    "x": 115.54,
+                    "y": 162.84,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 34"
+                },
+                {
+                    "x": 122.29,
+                    "y": 173.14,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 35"
+                },
+                {
+                    "x": 121.49,
+                    "y": 173.14,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 36"
+                },
+                {
+                    "x": 128.23,
+                    "y": 183.43,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 37"
+                },
+                {
+                    "x": 127.43,
+                    "y": 183.43,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 38"
+                },
+                {
+                    "x": 134.17,
+                    "y": 193.73,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 39"
+                },
+                {
+                    "x": 133.37,
+                    "y": 193.73,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 40"
+                },
+                {
+                    "x": 140.12,
+                    "y": 204.02,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 41"
+                },
+                {
+                    "x": 139.32,
+                    "y": 204.02,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 42"
+                },
+                {
+                    "x": 116.34,
+                    "y": 183.43,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 43"
+                },
+                {
+                    "x": 115.54,
+                    "y": 183.43,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 44"
+                },
+                {
+                    "x": 122.29,
+                    "y": 193.73,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 45"
+                },
+                {
+                    "x": 121.49,
+                    "y": 193.73,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 46"
+                },
+                {
+                    "x": 128.23,
+                    "y": 204.02,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 47"
+                },
+                {
+                    "x": 127.43,
+                    "y": 204.02,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 48"
+                },
+                {
+                    "x": 116.34,
+                    "y": 204.02,
+                    "z": 9.5,
+                    "rotation": 90,
+                    "comment": "Position 49"
+                },
+                {
+                    "x": 115.54,
+                    "y": 204.02,
+                    "z": 9.5,
+                    "rotation": -90,
+                    "comment": "Position 50"
+                }
+            ]
+        }
+    ]
+}
