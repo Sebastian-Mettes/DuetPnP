@@ -13,9 +13,9 @@
 T0
 M190 S20
 M104 S265
-M104 T2 S0
+M104 T1 S0
 M109 S265
-M109 T2 S0
+M109 T1 S0
 M82 ;absolute extrusion mode
 G1 Z50 F6000
 G1 X150 Y150
@@ -416508,7 +416508,7 @@ M83 ; Relative Extruder mode
 G1 E-5
 G1 Z50
 M83 ;relative extrusion mode
-T2
+T1
 M82 ;absolute extrusion mode
 M83; Relative Extrusion Mode
 M83 ;relative extrusion mode
