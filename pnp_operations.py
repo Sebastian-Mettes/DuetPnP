@@ -163,9 +163,9 @@ class PnPWorkflow:
             self.use_yolo = False
 
         # Training data capture (for ML model improvement)
+        # Works with both YOLO and template matching
         self.training_capture_enabled = enable_training_capture
-        if enable_training_capture and self.use_yolo:
-            # Use session ID for training capture filenames
+        if enable_training_capture:
             session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
             self.vision_upper.enable_training_capture(session_id=f"upper_{session_id}")
             self.vision_lower.enable_training_capture(session_id=f"lower_{session_id}")

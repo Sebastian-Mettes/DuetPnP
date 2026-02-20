@@ -491,6 +491,15 @@ class VisionTools:
             center = (center[0] + roi_offset[0], center[1] + roi_offset[1])
             if self.debug:
                 print(f"DEBUG template_match: best_match top-left=({best_match[0]}, {best_match[1]}), template_size=({w}x{h}), adding offset=({w//2}, {h//2}), ROI offset={roi_offset}, final_center={center}")
+            
+            # Save training sample if enabled (use original template dimensions)
+            if self._training_capture_enabled:
+                orig_h, orig_w = template.shape[:2]
+                corners = self._calculate_obb_corners(
+                    center[0], center[1], orig_w, orig_h, -best_angle
+                )
+                self._save_training_sample(self.frame, corners, best_score)
+            
             self.is_component_detected = True
             return (center, best_angle)
         else:
@@ -722,6 +731,45 @@ class VisionTools:
         if self._training_capture_enabled:
             print(f"Training capture disabled. Saved {self._training_capture_count} samples.")
         self._training_capture_enabled = False
+
+    def _calculate_obb_corners(self, center_x: float, center_y: float,
+                                 width: float, height: float, angle_deg: float) -> np.ndarray:
+        """
+        Calculate OBB corners from center, dimensions, and angle.
+        
+        Args:
+            center_x, center_y: Center of the box in pixels
+            width, height: Dimensions of the box (before rotation)
+            angle_deg: Rotation angle in degrees (counterclockwise)
+        
+        Returns:
+            numpy array of shape (4, 2) with corner coordinates
+        """
+        angle_rad = np.radians(angle_deg)
+        cos_a = np.cos(angle_rad)
+        sin_a = np.sin(angle_rad)
+        
+        # Half dimensions
+        hw = width / 2
+        hh = height / 2
+        
+        # Corner offsets from center (before rotation)
+        # Top-left, Top-right, Bottom-right, Bottom-left
+        corners_local = [
+            (-hw, -hh),
+            (hw, -hh),
+            (hw, hh),
+            (-hw, hh)
+        ]
+        
+        # Rotate and translate to image coordinates
+        corners = []
+        for dx, dy in corners_local:
+            rx = dx * cos_a - dy * sin_a
+            ry = dx * sin_a + dy * cos_a
+            corners.append([center_x + rx, center_y + ry])
+        
+        return np.array(corners)
 
     def _save_training_sample(self, frame: np.ndarray, corners: np.ndarray, 
                                confidence: float):
