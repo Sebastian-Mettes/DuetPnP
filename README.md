@@ -49,9 +49,12 @@ DuetPnP/
 │   ├── calibrate_tools.py          # Tool calibration script
 │   └── run_pnp_task.py            # Main PnP execution script
 │
+│
+├── PnP_Run_Configs/                # Files defining location to place diodes on circuitboards / surfaces
+├── sessions/                       # Storage of training data 
 ├── templates/                      # Component template images
-├── images/                         # Reference images
-└── old_implementation/             # Archived code (DO NOT USE)
+└── images/                         # Reference images
+
 ```
 
 ## Hardware Requirements
