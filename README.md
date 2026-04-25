@@ -1,7 +1,6 @@
 # DuetPnP
 
-A Python-based pick-and-place (PnP) automation system built on the Duet3D printer platform. This project uses computer vision (OpenCV) for automated component detection, positioning, and placement, enabling precise surface-mount component assembly on a modified multi-toolhead printer.
-
+A Python-based pick-and-place (PnP) automation system built on the Duet3D printer platform. This project uses computer vision (OpenCV) for automated component detection, positioning, and placement, enabling precise surface-mount component assembly on conformal surfaces using a modified multi-toolhead printer.
 ## Features
 
 ### Core Functionality
@@ -271,7 +270,7 @@ The system automatically handles tools with different axis mappings (e.g., X→U
 3. Applies offsets to correct physical axes
 4. Saves axis mapping data in calibration results
 
-### Coordinate Systems
+### Coordinate Systemssebastian@indirectproof.net
 
 The system maintains several reference frames:
 1. **Machine coordinates**: Absolute printer coordinates
